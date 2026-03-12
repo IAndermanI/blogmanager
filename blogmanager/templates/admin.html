@@ -4,531 +4,311 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin — Blog Manager</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&family=Syne:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --bg: #0a0a0a; --surface: #111; --border: #222; --border-hi: #333;
-      --text: #e8e8e8; --muted: #555; --accent: #c8ff00; --accent-dim: rgba(200,255,0,0.08);
-      --red: #ff4455; --green: #00ff88;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: var(--bg); color: var(--text); font-family: 'JetBrains Mono', monospace; font-weight: 300; min-height: 100vh; display: grid; grid-template-columns: 240px 1fr; }
-
-    /* SIDEBAR */
-    aside { background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem 0; display: flex; flex-direction: column; height: 100vh; position: sticky; top: 0; overflow-y: auto; }
-    .logo { padding: 0 1.25rem 1.5rem; border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
-    .logo h1 { font-family: 'Syne', sans-serif; font-size: 0.9rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
-    .logo p { font-size: 0.6rem; color: var(--muted); margin-top: 0.2rem; }
-    .nav { padding: 0 0.75rem; }
-    .nav-label { font-size: 0.58rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); padding: 0 0.5rem; margin: 1rem 0 0.4rem; }
-    .nav-btn { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.55rem 0.75rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); background: none; border: 1px solid transparent; border-radius: 3px; cursor: pointer; transition: all 0.15s; text-align: left; margin-bottom: 2px; }
-    .nav-btn:hover { color: var(--text); background: var(--border); }
-    .nav-btn.active { color: var(--accent); background: var(--accent-dim); border-color: rgba(200,255,0,0.15); }
-    .nav-btn .icon { font-size: 0.8rem; width: 16px; }
-    .blog-list { padding: 0 0.75rem; flex: 1; overflow-y: auto; }
-
-    /* MAIN */
-    main { padding: 2rem 2.5rem; overflow-y: auto; max-height: 100vh; }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .page-title { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; margin-bottom: 0.25rem; }
-    .page-sub { font-size: 0.7rem; color: var(--muted); margin-bottom: 2rem; }
-
-    /* AI BOX */
-    .ai-box { background: var(--surface); border: 1px solid var(--border-hi); padding: 1.25rem; margin-bottom: 1.5rem; position: relative; }
-    .ai-tag { position: absolute; top: -0.55rem; left: 1rem; background: var(--accent); color: var(--bg); font-size: 0.58rem; font-weight: 500; letter-spacing: 0.1em; padding: 0.15rem 0.5rem; }
-    .ai-box textarea { width: 100%; background: transparent; border: none; outline: none; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; resize: none; min-height: 70px; line-height: 1.7; }
-    .ai-box textarea::placeholder { color: var(--muted); }
-    .ai-box-footer { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-
-    /* FORM */
-    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
-    .form-grid.full { grid-template-columns: 1fr; }
-    .field { display: flex; flex-direction: column; gap: 0.4rem; }
-    .field label { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-    .field input, .field textarea, .field select { background: var(--surface); border: 1px solid var(--border); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; padding: 0.6rem 0.75rem; outline: none; transition: border-color 0.2s; }
-    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--border-hi); }
-    .field textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
-    .color-row { display: flex; align-items: center; gap: 0.5rem; }
-    .color-row input[type=color] { width: 36px; height: 36px; padding: 2px; cursor: pointer; background: var(--surface); border: 1px solid var(--border); }
-    .color-row input[type=text] { flex: 1; }
-
-    /* BUTTONS */
-    .btn { padding: 0.55rem 1.2rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; cursor: pointer; border: 1px solid; transition: all 0.15s; letter-spacing: 0.05em; }
-    .btn-primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 500; }
-    .btn-primary:hover { background: #d4ff1a; }
-    .btn-secondary { background: transparent; color: var(--text); border-color: var(--border-hi); }
-    .btn-secondary:hover { border-color: var(--text); }
-    .btn-danger { background: transparent; color: var(--red); border-color: var(--red); }
-    .btn-danger:hover { background: rgba(255,68,85,0.1); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* BLOGS GRID */
-    .blogs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-    .blog-card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; transition: border-color 0.2s; }
-    .blog-card:hover { border-color: var(--border-hi); }
-    .blog-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem; }
-    .blog-card-name { font-family: 'Syne', sans-serif; font-size: 0.95rem; font-weight: 600; }
-    .blog-card-id { font-size: 0.65rem; color: var(--muted); margin-top: 0.2rem; }
-    .blog-card-niche { font-size: 0.65rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; }
-    .blog-card-stats { font-size: 0.7rem; color: var(--muted); margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-    .color-dots { display: flex; gap: 4px; }
-    .color-dot { width: 12px; height: 12px; border-radius: 50%; }
-    .blog-card-actions { display: flex; gap: 0.5rem; margin-top: 0.75rem; }
-
-    /* POSTS TABLE */
-    .posts-table { width: 100%; border-collapse: collapse; }
-    .posts-table th { font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); }
-    .posts-table td { font-size: 0.78rem; padding: 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-    .posts-table tr:hover td { background: var(--surface); }
-    .post-title-cell { font-weight: 400; max-width: 300px; }
-    .post-excerpt-cell { color: var(--muted); font-size: 0.7rem; margin-top: 0.2rem; }
-    .tag { display: inline-block; font-size: 0.6rem; padding: 0.15rem 0.5rem; border: 1px solid var(--border-hi); color: var(--muted); letter-spacing: 0.05em; }
-
-    /* STATUS */
-    .status { padding: 0.75rem 1rem; font-size: 0.75rem; margin-bottom: 1rem; border-left: 3px solid; }
-    .status.success { border-color: var(--green); background: rgba(0,255,136,0.05); color: var(--green); }
-    .status.error { border-color: var(--red); background: rgba(255,68,85,0.05); color: var(--red); }
-    .status.loading { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
-
-    /* SPINNER */
-    .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 0.4rem; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .section-divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
-    .section-label { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 1rem; }
-
-    /* BLOG SELECT */
-    .blog-selector { background: var(--surface); border: 1px solid var(--border-hi); color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; padding: 0.6rem 0.75rem; outline: none; width: 100%; margin-bottom: 1.5rem; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Inter',sans-serif; font-weight:300; background:#f5f5f0; color:#1a1a1a; min-height:100vh; }
+    .header { background:#1a1a1a; color:#fff; padding:1.5rem 2rem; display:flex; justify-content:space-between; align-items:center; }
+    .header h1 { font-size:1rem; font-weight:400; letter-spacing:0.1em; text-transform:uppercase; }
+    .header nav a { color:#999; text-decoration:none; margin-left:1.5rem; font-size:0.8rem; letter-spacing:0.05em; text-transform:uppercase; transition:color 0.2s; }
+    .header nav a:hover, .header nav a.active { color:#fff; }
+    .container { max-width:900px; margin:0 auto; padding:2rem; }
+    .panel { display:none; }
+    .panel.active { display:block; }
+    .card { background:#fff; border:1px solid #e0e0d8; padding:2rem; margin-bottom:1.5rem; }
+    .card h2 { font-size:0.85rem; font-weight:500; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:1.5rem; color:#666; }
+    .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1rem; }
+    .form-row.full { grid-template-columns:1fr; }
+    .field { display:flex; flex-direction:column; gap:0.4rem; }
+    .field label { font-size:0.7rem; letter-spacing:0.08em; text-transform:uppercase; color:#999; }
+    .field input, .field textarea, .field select { background:#fafaf8; border:1px solid #e0e0d8; color:#1a1a1a; font-family:'Inter',sans-serif; font-size:0.85rem; padding:0.6rem 0.75rem; outline:none; transition:border-color 0.2s; }
+    .field input:focus, .field textarea:focus { border-color:#999; }
+    .field textarea { resize:vertical; min-height:100px; line-height:1.6; }
+    .color-row { display:flex; align-items:center; gap:0.5rem; }
+    .color-row input[type=color] { width:36px; height:36px; padding:2px; cursor:pointer; border:1px solid #e0e0d8; background:#fafaf8; }
+    .color-row input[type=text] { flex:1; }
+    .btn { padding:0.6rem 1.5rem; font-family:'Inter',sans-serif; font-size:0.78rem; cursor:pointer; border:1px solid; transition:all 0.15s; letter-spacing:0.05em; text-transform:uppercase; }
+    .btn-dark { background:#1a1a1a; color:#fff; border-color:#1a1a1a; }
+    .btn-dark:hover { background:#333; }
+    .btn-outline { background:transparent; color:#1a1a1a; border-color:#ccc; }
+    .btn-outline:hover { border-color:#1a1a1a; }
+    .btn-red { background:transparent; color:#cc3333; border-color:#cc3333; }
+    .btn-red:hover { background:#fff0f0; }
+    .btn:disabled { opacity:0.4; cursor:not-allowed; }
+    /* AI box */
+    .ai-box { background:#fafaf8; border:1px solid #e0e0d8; border-left:3px solid #1a1a1a; padding:1.25rem; margin-bottom:1.5rem; }
+    .ai-box-label { font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:#999; margin-bottom:0.75rem; }
+    .ai-box textarea { width:100%; background:transparent; border:none; outline:none; color:#1a1a1a; font-family:'Inter',sans-serif; font-size:0.85rem; resize:none; min-height:60px; line-height:1.6; }
+    .ai-box textarea::placeholder { color:#bbb; }
+    .ai-box-footer { display:flex; justify-content:flex-end; margin-top:0.75rem; padding-top:0.75rem; border-top:1px solid #e0e0d8; }
+    /* status */
+    .status { padding:0.75rem 1rem; font-size:0.78rem; margin-bottom:1rem; border-left:3px solid; }
+    .status.success { border-color:#2a7a2a; background:#f0fff0; color:#2a7a2a; }
+    .status.error { border-color:#cc3333; background:#fff0f0; color:#cc3333; }
+    .status.loading { border-color:#999; background:#fafaf8; color:#666; }
+    /* blogs list */
+    .blog-item { display:flex; justify-content:space-between; align-items:center; padding:1rem 0; border-bottom:1px solid #e0e0d8; }
+    .blog-item:last-child { border-bottom:none; }
+    .blog-item-info h3 { font-size:0.95rem; font-weight:400; margin-bottom:0.2rem; }
+    .blog-item-info p { font-size:0.75rem; color:#999; }
+    .blog-item-actions { display:flex; gap:0.5rem; align-items:center; }
+    .color-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:2px; }
+    /* blog selector */
+    .blog-select { width:100%; background:#fafaf8; border:1px solid #e0e0d8; color:#1a1a1a; font-family:'Inter',sans-serif; font-size:0.85rem; padding:0.6rem 0.75rem; outline:none; margin-bottom:1.5rem; }
+    .spinner { display:inline-block; width:10px; height:10px; border:2px solid currentColor; border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; margin-right:0.4rem; vertical-align:middle; }
+    @keyframes spin { to { transform:rotate(360deg); } }
   </style>
 </head>
 <body>
+<div class="header">
+  <h1>Blog Manager</h1>
+  <nav>
+    <a href="#" class="active" onclick="showPanel('blogs',this)">Blogs</a>
+    <a href="#" onclick="showPanel('new-blog',this)">New Blog</a>
+    <a href="#" onclick="showPanel('new-post',this)">New Post</a>
+  </nav>
+</div>
 
-<aside>
-  <div class="logo">
-    <h1>Blog Manager</h1>
-    <p>Admin Panel</p>
-  </div>
-  <div class="nav">
-    <div class="nav-label">Navigation</div>
-    <button class="nav-btn active" onclick="showPanel('overview')">
-      <span class="icon">◈</span> Overview
-    </button>
-    <button class="nav-btn" onclick="showPanel('create-blog')">
-      <span class="icon">+</span> New Blog
-    </button>
-    <button class="nav-btn" onclick="showPanel('create-post')">
-      <span class="icon">✎</span> New Post
-    </button>
-    <div class="nav-label">Blogs</div>
-  </div>
-  <div class="blog-list" id="sidebar-blogs"></div>
-</aside>
+<div class="container">
 
-<main>
-  <!-- OVERVIEW -->
-  <div class="panel active" id="panel-overview">
-    <div class="page-title">Overview</div>
-    <div class="page-sub">All blogs managed by this instance</div>
-    <div id="status-overview"></div>
-    <div class="blogs-grid" id="blogs-grid"></div>
-  </div>
-
-  <!-- CREATE BLOG -->
-  <div class="panel" id="panel-create-blog">
-    <div class="page-title">New Blog</div>
-    <div class="page-sub">Describe your blog and let AI fill in the details</div>
-    <div id="status-create-blog"></div>
-
-    <div class="ai-box">
-      <span class="ai-tag">AI FILL</span>
-      <textarea id="blog-ai-prompt" placeholder="Describe your blog idea... e.g. 'A Russian-language astrology blog for young women, mystical and warm vibes, dark purple theme'"></textarea>
-      <div class="ai-box-footer">
-        <button class="btn btn-secondary" id="btn-ai-blog" onclick="aiFillBlog()">Generate fields</button>
-      </div>
+  <!-- BLOGS LIST -->
+  <div class="panel active" id="panel-blogs">
+    <div id="status-blogs"></div>
+    <div class="card">
+      <h2>All Blogs</h2>
+      <div id="blogs-list"><p style="color:#999;font-size:0.85rem">Loading...</p></div>
     </div>
+  </div>
 
-    <div class="form-grid">
-      <div class="field">
-        <label>Blog ID (URL slug)</label>
-        <input type="text" id="blog-id" placeholder="my-blog-name">
+  <!-- NEW BLOG -->
+  <div class="panel" id="panel-new-blog">
+    <div id="status-new-blog"></div>
+    <div class="card">
+      <h2>New Blog</h2>
+      <div class="ai-box">
+        <div class="ai-box-label">✦ AI Fill — describe your blog idea</div>
+        <textarea id="blog-ai-prompt" placeholder="e.g. Russian astrology blog for young women, mystical dark purple theme..."></textarea>
+        <div class="ai-box-footer">
+          <button class="btn btn-outline" id="btn-ai-blog" onclick="aiFillBlog()">Generate fields</button>
+        </div>
       </div>
-      <div class="field">
-        <label>Blog Name</label>
-        <input type="text" id="blog-name" placeholder="My Blog">
+      <div class="form-row">
+        <div class="field"><label>Blog ID (slug)</label><input type="text" id="blog-id" placeholder="my-blog"></div>
+        <div class="field"><label>Name</label><input type="text" id="blog-name" placeholder="My Blog"></div>
       </div>
-      <div class="field">
-        <label>Tagline</label>
-        <input type="text" id="blog-tagline" placeholder="Short catchy phrase">
+      <div class="form-row full">
+        <div class="field"><label>Tagline</label><input type="text" id="blog-tagline" placeholder="Short catchy phrase"></div>
       </div>
-      <div class="field">
-        <label>Niche</label>
-        <input type="text" id="blog-niche" placeholder="kbeauty, fitness, astrology...">
+      <div class="form-row">
+        <div class="field"><label>Niche</label><input type="text" id="blog-niche" placeholder="kbeauty, fitness..."></div>
+        <div class="field"><label>Language</label>
+          <select id="blog-language"><option value="en">English</option><option value="ru">Russian</option></select>
+        </div>
       </div>
-      <div class="field">
-        <label>Language</label>
-        <select id="blog-language">
-          <option value="en">English</option>
-          <option value="ru">Russian</option>
+      <div class="form-row full">
+        <div class="field"><label>Description</label><textarea id="blog-description" placeholder="About section text..."></textarea></div>
+      </div>
+      <div class="form-row full">
+        <div class="field"><label>Telegram Channel (optional)</label><input type="text" id="blog-telegram" placeholder="@channel"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Primary Color</label><div class="color-row"><input type="color" id="blog-primary-p" value="#c4847a" oninput="syncColor('primary')"><input type="text" id="blog-primary" value="#c4847a" oninput="syncPicker('primary')"></div></div>
+        <div class="field"><label>Accent Color</label><div class="color-row"><input type="color" id="blog-accent-p" value="#e8c4b8" oninput="syncColor('accent')"><input type="text" id="blog-accent" value="#e8c4b8" oninput="syncPicker('accent')"></div></div>
+        <div class="field"><label>Background</label><div class="color-row"><input type="color" id="blog-bg-p" value="#faf7f4" oninput="syncColor('bg')"><input type="text" id="blog-bg" value="#faf7f4" oninput="syncPicker('bg')"></div></div>
+        <div class="field"><label>Text Color</label><div class="color-row"><input type="color" id="blog-text-p" value="#3d2b2b" oninput="syncColor('text')"><input type="text" id="blog-text" value="#3d2b2b" oninput="syncPicker('text')"></div></div>
+      </div>
+      <button class="btn btn-dark" onclick="createBlog()">Create Blog</button>
+    </div>
+  </div>
+
+  <!-- NEW POST -->
+  <div class="panel" id="panel-new-post">
+    <div id="status-new-post"></div>
+    <div class="card">
+      <h2>New Post</h2>
+      <div class="field" style="margin-bottom:1.5rem">
+        <label>Select Blog</label>
+        <select class="blog-select" id="post-blog-select">
+          <option value="">— choose a blog —</option>
         </select>
       </div>
-      <div class="field">
-        <label>Telegram Channel (optional)</label>
-        <input type="text" id="blog-telegram" placeholder="@mychannel">
+      <div class="ai-box">
+        <div class="ai-box-label">✦ AI Fill — describe the post</div>
+        <textarea id="post-ai-prompt" placeholder="e.g. 5 Korean skincare ingredients for dry skin, practical tips..."></textarea>
+        <div class="ai-box-footer">
+          <button class="btn btn-outline" id="btn-ai-post" onclick="aiFillPost()">Generate post</button>
+        </div>
       </div>
+      <div class="form-row">
+        <div class="field"><label>Title</label><input type="text" id="post-title" placeholder="Post title"></div>
+        <div class="field"><label>Category</label><input type="text" id="post-category" placeholder="Tips, Review..."></div>
+      </div>
+      <div class="form-row full">
+        <div class="field"><label>Excerpt (optional)</label><input type="text" id="post-excerpt" placeholder="Short summary"></div>
+      </div>
+      <div class="form-row full">
+        <div class="field"><label>Content</label><textarea id="post-content" style="min-height:180px" placeholder="Post content..."></textarea></div>
+      </div>
+      <button class="btn btn-dark" onclick="createPost()">Publish Post</button>
     </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label>Description</label>
-        <textarea id="blog-description" placeholder="About section text. Use new lines for paragraphs." style="min-height:140px"></textarea>
-      </div>
-    </div>
-
-    <div class="section-label">Colors</div>
-    <div class="form-grid">
-      <div class="field">
-        <label>Primary Color</label>
-        <div class="color-row">
-          <input type="color" id="blog-primary-picker" value="#c4847a" oninput="syncColor('primary')">
-          <input type="text" id="blog-primary" value="#c4847a" oninput="syncPicker('primary')">
-        </div>
-      </div>
-      <div class="field">
-        <label>Accent Color</label>
-        <div class="color-row">
-          <input type="color" id="blog-accent-picker" value="#e8c4b8" oninput="syncColor('accent')">
-          <input type="text" id="blog-accent" value="#e8c4b8" oninput="syncPicker('accent')">
-        </div>
-      </div>
-      <div class="field">
-        <label>Background Color</label>
-        <div class="color-row">
-          <input type="color" id="blog-bg-picker" value="#faf7f4" oninput="syncColor('bg')">
-          <input type="text" id="blog-bg" value="#faf7f4" oninput="syncPicker('bg')">
-        </div>
-      </div>
-      <div class="field">
-        <label>Text Color</label>
-        <div class="color-row">
-          <input type="color" id="blog-text-picker" value="#3d2b2b" oninput="syncColor('text')">
-          <input type="text" id="blog-text" value="#3d2b2b" oninput="syncPicker('text')">
-        </div>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" onclick="createBlog()">Create Blog</button>
   </div>
 
-  <!-- CREATE POST -->
-  <div class="panel" id="panel-create-post">
-    <div class="page-title">New Post</div>
-    <div class="page-sub">Write or generate a post for a specific blog</div>
-    <div id="status-create-post"></div>
-
-    <div class="section-label">Select Blog</div>
-    <select class="blog-selector" id="post-blog-select" onchange="loadBlogContext()">
-      <option value="">— choose a blog —</option>
-    </select>
-
-    <div class="ai-box">
-      <span class="ai-tag">AI FILL</span>
-      <textarea id="post-ai-prompt" placeholder="Describe the post... e.g. '5 Korean skincare ingredients for dry skin, practical tips'"></textarea>
-      <div class="ai-box-footer">
-        <button class="btn btn-secondary" id="btn-ai-post" onclick="aiFillPost()">Generate post</button>
-      </div>
-    </div>
-
-    <div class="form-grid">
-      <div class="field">
-        <label>Title</label>
-        <input type="text" id="post-title" placeholder="Post title">
-      </div>
-      <div class="field">
-        <label>Category</label>
-        <input type="text" id="post-category" placeholder="Skincare, Tips...">
-      </div>
-    </div>
-    <div class="form-grid full">
-      <div class="field">
-        <label>Excerpt (optional)</label>
-        <input type="text" id="post-excerpt" placeholder="Short summary — auto-generated if empty">
-      </div>
-    </div>
-    <div class="form-grid full">
-      <div class="field">
-        <label>Content</label>
-        <textarea id="post-content" placeholder="Post content..." style="min-height:200px"></textarea>
-      </div>
-    </div>
-
-    <button class="btn btn-primary" onclick="createPost()">Publish Post</button>
-  </div>
-</main>
+</div>
 
 <script>
-const API = '';  // same origin
-
-// ── Utils ──────────────────────────────────────────────────────────────────
-
-function showPanel(name) {
+function showPanel(name, el) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.header nav a').forEach(a => a.classList.remove('active'));
   document.getElementById('panel-' + name).classList.add('active');
-  event.currentTarget.classList.add('active');
-  if (name === 'overview') loadOverview();
-  if (name === 'create-post') loadBlogSelectOptions();
+  if (el) el.classList.add('active');
+  if (name === 'blogs') loadBlogs();
+  if (name === 'new-post') loadBlogSelect();
 }
 
 function setStatus(id, type, msg) {
   const el = document.getElementById('status-' + id);
   if (!msg) { el.innerHTML = ''; return; }
-  el.innerHTML = `<div class="status ${type}">${type === 'loading' ? '<span class="spinner"></span>' : ''}${msg}</div>`;
+  el.innerHTML = `<div class="status ${type}">${type==='loading'?'<span class="spinner"></span>':''}${msg}</div>`;
 }
 
-function syncColor(field) {
-  document.getElementById('blog-' + field).value = document.getElementById('blog-' + field + '-picker').value;
-}
-function syncPicker(field) {
-  const val = document.getElementById('blog-' + field).value;
-  if (/^#[0-9a-fA-F]{6}$/.test(val)) document.getElementById('blog-' + field + '-picker').value = val;
-}
+function syncColor(f) { document.getElementById('blog-'+f).value = document.getElementById('blog-'+f+'-p').value; }
+function syncPicker(f) { const v=document.getElementById('blog-'+f).value; if(/^#[0-9a-fA-F]{6}$/.test(v)) document.getElementById('blog-'+f+'-p').value=v; }
 
-// ── Load overview ──────────────────────────────────────────────────────────
-
-async function loadOverview() {
-  setStatus('overview', 'loading', 'Loading blogs...');
+async function loadBlogs() {
   try {
-    const res = await fetch(`${API}/api/blogs`);
+    const res = await fetch('/api/blogs');
     const blogs = await res.json();
-    setStatus('overview', '', '');
-
-    const grid = document.getElementById('blogs-grid');
-    if (!blogs.length) {
-      grid.innerHTML = '<p style="color:var(--muted);font-size:0.8rem">No blogs yet. Create one!</p>';
-      return;
-    }
-
-    grid.innerHTML = blogs.map(b => `
-      <div class="blog-card">
-        <div class="blog-card-header">
-          <div>
-            <div class="blog-card-name">${b.name}</div>
-            <div class="blog-card-id">/${b.id}/</div>
-          </div>
-          <div class="blog-card-niche">${b.niche}</div>
+    const el = document.getElementById('blogs-list');
+    if (!blogs.length) { el.innerHTML = '<p style="color:#999;font-size:0.85rem">No blogs yet.</p>'; return; }
+    el.innerHTML = blogs.map(b => `
+      <div class="blog-item">
+        <div class="blog-item-info">
+          <h3>${b.name}
+            <span class="color-dot" style="background:${b.primary_color}" title="primary"></span>
+            <span class="color-dot" style="background:${b.accent_color}" title="accent"></span>
+            <span class="color-dot" style="background:${b.bg_color};border:1px solid #ccc" title="bg"></span>
+          </h3>
+          <p>/${b.id}/ · ${b.niche} · ${b.language} · ${b.post_count||0} posts</p>
         </div>
-        <div style="font-size:0.72rem;color:var(--muted);line-height:1.5">${b.tagline}</div>
-        <div class="blog-card-stats">
-          <span>${b.post_count || 0} posts · ${b.language}</span>
-          <div class="color-dots">
-            <div class="color-dot" style="background:${b.primary_color}" title="primary"></div>
-            <div class="color-dot" style="background:${b.accent_color}" title="accent"></div>
-            <div class="color-dot" style="background:${b.bg_color};border:1px solid var(--border)" title="bg"></div>
-          </div>
+        <div class="blog-item-actions">
+          <a href="/${b.id}/" target="_blank" class="btn btn-outline" style="font-size:0.7rem;padding:0.4rem 0.9rem;text-decoration:none">View</a>
+          <button class="btn btn-red" style="font-size:0.7rem;padding:0.4rem 0.9rem" onclick="deleteBlog('${b.id}')">Delete</button>
         </div>
-        <div class="blog-card-actions">
-          <a href="/${b.id}/" target="_blank" class="btn btn-secondary" style="font-size:0.7rem;padding:0.35rem 0.75rem;text-decoration:none">View →</a>
-          <button class="btn btn-danger" style="font-size:0.7rem;padding:0.35rem 0.75rem" onclick="deleteBlog('${b.id}')">Delete</button>
-        </div>
-      </div>
-    `).join('');
-
-    // sidebar
-    const sb = document.getElementById('sidebar-blogs');
-    sb.innerHTML = blogs.map(b => `
-      <div class="blog-nav-item" onclick="window.open('/${b.id}/','_blank')">${b.name}</div>
-    `).join('');
-  } catch(e) {
-    setStatus('overview', 'error', 'Failed to load blogs');
-  }
+      </div>`).join('');
+  } catch(e) { setStatus('blogs', 'error', 'Failed to load blogs'); }
 }
-
-// ── AI fill blog ───────────────────────────────────────────────────────────
-
-async function aiFillBlog() {
-  const prompt = document.getElementById('blog-ai-prompt').value.trim();
-  if (!prompt) return;
-  const btn = document.getElementById('btn-ai-blog');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Generating...';
-  setStatus('create-blog', 'loading', 'AI is generating blog configuration...');
-
-  try {
-    const res = await fetch(`${API}/api/ai/generate-blog`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-
-    document.getElementById('blog-id').value          = data.id || '';
-    document.getElementById('blog-name').value         = data.name || '';
-    document.getElementById('blog-tagline').value      = data.tagline || '';
-    document.getElementById('blog-description').value  = data.description || '';
-    document.getElementById('blog-niche').value        = data.niche || '';
-    document.getElementById('blog-language').value     = data.language || 'en';
-
-    if (data.primary_color) {
-      document.getElementById('blog-primary').value        = data.primary_color;
-      document.getElementById('blog-primary-picker').value = data.primary_color;
-    }
-    if (data.accent_color) {
-      document.getElementById('blog-accent').value         = data.accent_color;
-      document.getElementById('blog-accent-picker').value  = data.accent_color;
-    }
-    if (data.bg_color) {
-      document.getElementById('blog-bg').value              = data.bg_color;
-      document.getElementById('blog-bg-picker').value       = data.bg_color;
-    }
-    if (data.text_color) {
-      document.getElementById('blog-text').value            = data.text_color;
-      document.getElementById('blog-text-picker').value     = data.text_color;
-    }
-
-    setStatus('create-blog', 'success', 'Fields filled! Review and click "Create Blog".');
-  } catch(e) {
-    setStatus('create-blog', 'error', 'AI error: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Generate fields';
-  }
-}
-
-// ── Create blog ────────────────────────────────────────────────────────────
-
-async function createBlog() {
-  const body = {
-    id:               document.getElementById('blog-id').value.trim(),
-    name:             document.getElementById('blog-name').value.trim(),
-    tagline:          document.getElementById('blog-tagline').value.trim(),
-    description:      document.getElementById('blog-description').value.trim(),
-    niche:            document.getElementById('blog-niche').value.trim(),
-    language:         document.getElementById('blog-language').value,
-    primary_color:    document.getElementById('blog-primary').value,
-    accent_color:     document.getElementById('blog-accent').value,
-    bg_color:         document.getElementById('blog-bg').value,
-    text_color:       document.getElementById('blog-text').value,
-    telegram_channel: document.getElementById('blog-telegram').value.trim() || null,
-  };
-
-  if (!body.id || !body.name) {
-    setStatus('create-blog', 'error', 'Blog ID and Name are required'); return;
-  }
-
-  setStatus('create-blog', 'loading', 'Creating blog...');
-  try {
-    const res = await fetch(`${API}/api/blogs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    setStatus('create-blog', 'success', `Blog created! <a href="/${body.id}/" target="_blank" style="color:var(--accent)">View →</a>`);
-  } catch(e) {
-    setStatus('create-blog', 'error', 'Error: ' + e.message);
-  }
-}
-
-// ── Delete blog ────────────────────────────────────────────────────────────
 
 async function deleteBlog(id) {
-  if (!confirm(`Delete blog "${id}"? This will delete all its posts too.`)) return;
-  await fetch(`${API}/api/blogs/${id}`, { method: 'DELETE' });
-  loadOverview();
+  if (!confirm(`Delete blog "${id}"? This deletes all its posts too.`)) return;
+  await fetch(`/api/blogs/${id}`, {method:'DELETE'});
+  loadBlogs();
 }
 
-// ── Blog select for posts ──────────────────────────────────────────────────
-
-async function loadBlogSelectOptions() {
-  const res = await fetch(`${API}/api/blogs`);
+async function loadBlogSelect() {
+  const res = await fetch('/api/blogs');
   const blogs = await res.json();
   const sel = document.getElementById('post-blog-select');
   sel.innerHTML = '<option value="">— choose a blog —</option>' +
     blogs.map(b => `<option value="${b.id}">${b.name} (${b.language})</option>`).join('');
 }
 
-function loadBlogContext() {
-  const id = document.getElementById('post-blog-select').value;
-  if (id) setStatus('create-post', '', '');
-}
-
-// ── AI fill post ───────────────────────────────────────────────────────────
-
-async function aiFillPost() {
-  const prompt  = document.getElementById('post-ai-prompt').value.trim();
-  const blog_id = document.getElementById('post-blog-select').value;
+async function aiFillBlog() {
+  const prompt = document.getElementById('blog-ai-prompt').value.trim();
   if (!prompt) return;
-  if (!blog_id) { setStatus('create-post', 'error', 'Select a blog first'); return; }
-
-  const btn = document.getElementById('btn-ai-post');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Generating...';
-  setStatus('create-post', 'loading', 'AI is writing your post...');
-
+  const btn = document.getElementById('btn-ai-blog');
+  btn.disabled = true; btn.textContent = 'Generating...';
+  setStatus('new-blog', 'loading', 'AI is filling fields...');
   try {
-    const res = await fetch(`${API}/api/ai/generate-post`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, blog_id }),
+    const res = await fetch('/api/ai/generate-blog', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({prompt})
     });
     if (!res.ok) throw new Error(await res.text());
-    const data = await res.json();
-
-    document.getElementById('post-title').value    = data.title   || '';
-    document.getElementById('post-content').value  = data.content || '';
-    document.getElementById('post-category').value = data.category|| '';
-    document.getElementById('post-excerpt').value  = data.excerpt || '';
-
-    setStatus('create-post', 'success', 'Post generated! Review and click "Publish Post".');
-  } catch(e) {
-    setStatus('create-post', 'error', 'AI error: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'Generate post';
-  }
+    const d = await res.json();
+    document.getElementById('blog-id').value          = d.id || '';
+    document.getElementById('blog-name').value         = d.name || '';
+    document.getElementById('blog-tagline').value      = d.tagline || '';
+    document.getElementById('blog-description').value  = d.description || '';
+    document.getElementById('blog-niche').value        = d.niche || '';
+    document.getElementById('blog-language').value     = d.language || 'en';
+    if (d.primary_color) { document.getElementById('blog-primary').value=d.primary_color; document.getElementById('blog-primary-p').value=d.primary_color; }
+    if (d.accent_color)  { document.getElementById('blog-accent').value=d.accent_color;   document.getElementById('blog-accent-p').value=d.accent_color; }
+    if (d.bg_color)      { document.getElementById('blog-bg').value=d.bg_color;           document.getElementById('blog-bg-p').value=d.bg_color; }
+    if (d.text_color)    { document.getElementById('blog-text').value=d.text_color;       document.getElementById('blog-text-p').value=d.text_color; }
+    setStatus('new-blog', 'success', 'Fields filled! Review and click "Create Blog".');
+  } catch(e) { setStatus('new-blog', 'error', 'AI error: ' + e.message); }
+  finally { btn.disabled=false; btn.textContent='Generate fields'; }
 }
 
-// ── Create post ────────────────────────────────────────────────────────────
+async function createBlog() {
+  const body = {
+    id: document.getElementById('blog-id').value.trim(),
+    name: document.getElementById('blog-name').value.trim(),
+    tagline: document.getElementById('blog-tagline').value.trim(),
+    description: document.getElementById('blog-description').value.trim(),
+    niche: document.getElementById('blog-niche').value.trim(),
+    language: document.getElementById('blog-language').value,
+    primary_color: document.getElementById('blog-primary').value,
+    accent_color: document.getElementById('blog-accent').value,
+    bg_color: document.getElementById('blog-bg').value,
+    text_color: document.getElementById('blog-text').value,
+    telegram_channel: document.getElementById('blog-telegram').value.trim() || null,
+  };
+  if (!body.id || !body.name) { setStatus('new-blog','error','Blog ID and Name are required'); return; }
+  setStatus('new-blog','loading','Creating...');
+  try {
+    const res = await fetch('/api/blogs', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail||JSON.stringify(d));
+    setStatus('new-blog','success',`Created! <a href="/${body.id}/" target="_blank">View →</a>`);
+  } catch(e) { setStatus('new-blog','error','Error: '+e.message); }
+}
+
+async function aiFillPost() {
+  const prompt = document.getElementById('post-ai-prompt').value.trim();
+  const blog_id = document.getElementById('post-blog-select').value;
+  if (!prompt) return;
+  if (!blog_id) { setStatus('new-post','error','Select a blog first'); return; }
+  const btn = document.getElementById('btn-ai-post');
+  btn.disabled=true; btn.textContent='Generating...';
+  setStatus('new-post','loading','AI is writing your post...');
+  try {
+    const res = await fetch('/api/ai/generate-post', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({prompt, blog_id})
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const d = await res.json();
+    document.getElementById('post-title').value    = d.title    || '';
+    document.getElementById('post-content').value  = d.content  || '';
+    document.getElementById('post-category').value = d.category || '';
+    document.getElementById('post-excerpt').value  = d.excerpt  || '';
+    setStatus('new-post','success','Post generated! Review and click "Publish Post".');
+  } catch(e) { setStatus('new-post','error','AI error: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='Generate post'; }
+}
 
 async function createPost() {
   const blog_id = document.getElementById('post-blog-select').value;
-  if (!blog_id) { setStatus('create-post', 'error', 'Select a blog first'); return; }
-
+  if (!blog_id) { setStatus('new-post','error','Select a blog first'); return; }
   const body = {
-    title:    document.getElementById('post-title').value.trim(),
-    content:  document.getElementById('post-content').value.trim(),
+    title: document.getElementById('post-title').value.trim(),
+    content: document.getElementById('post-content').value.trim(),
     category: document.getElementById('post-category').value.trim() || null,
-    excerpt:  document.getElementById('post-excerpt').value.trim()  || null,
+    excerpt: document.getElementById('post-excerpt').value.trim() || null,
   };
-
-  if (!body.title || !body.content) {
-    setStatus('create-post', 'error', 'Title and content are required'); return;
-  }
-
-  setStatus('create-post', 'loading', 'Publishing...');
+  if (!body.title || !body.content) { setStatus('new-post','error','Title and content are required'); return; }
+  setStatus('new-post','loading','Publishing...');
   try {
-    const res = await fetch(`${API}/api/blogs/${blog_id}/posts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
-    setStatus('create-post', 'success', `Published! <a href="/${blog_id}/blog/${data.slug}" target="_blank" style="color:var(--accent)">View post →</a>`);
-    document.getElementById('post-title').value = '';
-    document.getElementById('post-content').value = '';
-    document.getElementById('post-category').value = '';
-    document.getElementById('post-excerpt').value = '';
-  } catch(e) {
-    setStatus('create-post', 'error', 'Error: ' + e.message);
-  }
+    const res = await fetch(`/api/blogs/${blog_id}/posts`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail||JSON.stringify(d));
+    setStatus('new-post','success',`Published! <a href="/${blog_id}/blog/${d.slug}" target="_blank">View →</a>`);
+    ['post-title','post-content','post-category','post-excerpt'].forEach(id => document.getElementById(id).value='');
+  } catch(e) { setStatus('new-post','error','Error: '+e.message); }
 }
 
-// Init
-loadOverview();
+loadBlogs();
 </script>
 </body>
 </html>
