@@ -1,0 +1,38 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n
+    container_name: n8n
+    restart: always
+    network_mode: bridge
+    ports:
+      - "5678:5678"
+    volumes:
+      - ~/.n8n:/home/node/.n8n
+      - ./workflows:/home/node/workflows
+    entrypoint: ["/bin/sh", "/home/node/workflows/import.sh"]
+    environment:
+      - N8N_SECURE_COOKIE=false
+      - N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_MY_ID=${TELEGRAM_MY_ID}
+      - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: ngrok
+    restart: always
+    network_mode: bridge
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+    command: http 172.17.0.1:5678
+  blog-manager:
+    build:
+      context: ./blogmanager
+    container_name: blog-manager
+    restart: always
+    network_mode: bridge
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./blogmanager/data:/app/data

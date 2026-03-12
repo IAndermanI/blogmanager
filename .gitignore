@@ -1,0 +1,20 @@
+# n8n data
+.n8n/
+
+# blog database and data
+blogmanager/data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Docker
+*.log
+
+# Environment
+.env
+
+# OS
+.DS_Store

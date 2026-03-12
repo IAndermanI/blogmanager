@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}{{ cfg.name }} — {{ cfg.tagline }}{% endblock %}
+
+{% block extra_styles %}
+.hero { min-height:100vh; display:grid; grid-template-columns:1fr 1fr; padding-top:5rem; position:relative; overflow:hidden; }
+.hero-bg { position:absolute; width:600px; height:600px; border-radius:50%; background:radial-gradient(circle, color-mix(in srgb, var(--accent) 40%, transparent) 0%, transparent 70%); right:-100px; top:50%; transform:translateY(-50%); pointer-events:none; }
+.hero-left { padding:8rem 4rem 4rem 6rem; display:flex; flex-direction:column; justify-content:center; position:relative; z-index:1; }
+.hero-eyebrow { font-size:0.72rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--primary); margin-bottom:1.5rem; opacity:0; animation:fadeUp 0.8s 0.2s forwards; }
+.hero-title { font-family:var(--font-display); font-size:clamp(3rem,5vw,5.5rem); font-weight:300; line-height:1.05; margin-bottom:2rem; opacity:0; animation:fadeUp 0.8s 0.4s forwards; }
+.hero-title em { font-style:italic; color:var(--primary); }
+.hero-desc { font-size:1rem; line-height:1.8; color:var(--muted); max-width:420px; margin-bottom:3rem; opacity:0; animation:fadeUp 0.8s 0.6s forwards; }
+.hero-cta { display:inline-flex; align-items:center; gap:0.75rem; background:var(--text); color:var(--bg); padding:1rem 2.5rem; text-decoration:none; font-size:0.8rem; letter-spacing:0.15em; text-transform:uppercase; border-radius:var(--br); transition:all 0.3s; opacity:0; animation:fadeUp 0.8s 0.8s forwards; width:fit-content; }
+.hero-cta:hover { background:var(--primary); transform:translateY(-2px); }
+.hero-right { display:flex; align-items:center; justify-content:center; padding:8rem 4rem 4rem; position:relative; z-index:1; }
+.hero-card { background:var(--glass); backdrop-filter:blur(20px); border:1px solid color-mix(in srgb, var(--primary) 25%, transparent); padding:3rem; max-width:340px; border-radius:var(--br); opacity:0; animation:fadeIn 1s 1s forwards; }
+.hero-card-tag { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--primary); margin-bottom:1rem; }
+.hero-card-title { font-family:var(--font-display); font-size:1.6rem; line-height:1.3; margin-bottom:1rem; }
+.hero-card-text { font-size:0.88rem; line-height:1.7; color:var(--muted); margin-bottom:1.5rem; }
+.hero-card-link { font-size:0.75rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--text); text-decoration:none; border-bottom:1px solid var(--accent); padding-bottom:2px; }
+
+.about { padding:var(--pad) 6rem; display:grid; grid-template-columns:1fr 2fr; gap:6rem; align-items:center; border-top:1px solid color-mix(in srgb, var(--primary) 15%, transparent); position:relative; z-index:1; }
+.about-label { font-family:var(--font-display); font-size:4rem; font-weight:300; font-style:italic; color:var(--accent); line-height:1; }
+.about-content h2 { font-family:var(--font-display); font-size:2.2rem; font-weight:300; margin-bottom:1.5rem; }
+.about-content p { font-size:0.95rem; line-height:1.9; color:var(--muted); margin-bottom:1rem; }
+
+.blog-section { padding:var(--pad) 6rem; position:relative; z-index:1; }
+.section-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4rem; }
+.section-title { font-family:var(--font-display); font-size:2.8rem; font-weight:300; }
+.section-link { font-size:0.75rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--primary); text-decoration:none; }
+.posts-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:2rem; }
+.post-card { border:1px solid color-mix(in srgb, var(--primary) 20%, transparent); padding:2rem; border-radius:var(--br); transition:all 0.3s; text-decoration:none; display:block; color:inherit; }
+.post-card:hover { border-color:var(--primary); transform:translateY(-4px); box-shadow:0 12px 40px color-mix(in srgb, var(--primary) 12%, transparent); }
+.post-category { font-size:0.65rem; letter-spacing:0.2em; text-transform:uppercase; color:var(--primary); margin-bottom:0.75rem; }
+.post-title { font-family:var(--font-display); font-size:1.4rem; font-weight:300; line-height:1.3; margin-bottom:0.75rem; }
+.post-excerpt { font-size:0.85rem; line-height:1.7; color:var(--muted); margin-bottom:1.5rem; }
+.post-date { font-size:0.72rem; color:var(--accent); }
+.empty { color:var(--muted); font-style:italic; font-family:var(--font-display); font-size:1.2rem; }
+
+@media (max-width:768px) {
+  .hero { grid-template-columns:1fr; }
+  .hero-left { padding:7rem 1.5rem 2rem; }
+  .hero-right { display:none; }
+  .about { grid-template-columns:1fr; padding:4rem 1.5rem; gap:2rem; }
+  .blog-section { padding:4rem 1.5rem; }
+  .posts-grid { grid-template-columns:1fr; }
+}
+{% endblock %}
+
+{% block content %}
+{% set theme   = (cfg.theme   | from_json) if cfg.theme   else {} %}
+{% set strings = (cfg.strings | from_json) if cfg.strings else {} %}
+{% set s = strings %}
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-left">
+    <p class="hero-eyebrow">{{ s.get('hero_eyebrow', cfg.niche) }}</p>
+    <h1 class="hero-title">{{ cfg.tagline }}</h1>
+    <p class="hero-desc">{{ cfg.description[:200] }}</p>
+    <a href="{{ base }}/blog" class="hero-cta">{{ s.get('nav_blog', 'Blog') }} →</a>
+  </div>
+  <div class="hero-right">
+    {% if posts %}
+    <div class="hero-card">
+      <p class="hero-card-tag">{{ posts[0].category }}</p>
+      <h3 class="hero-card-title">{{ posts[0].title }}</h3>
+      <p class="hero-card-text">{{ posts[0].excerpt }}</p>
+      <a href="{{ base }}/blog/{{ posts[0].slug }}" class="hero-card-link">→</a>
+    </div>
+    {% else %}
+    <div class="hero-card">
+      <p class="hero-card-tag">{{ cfg.niche }}</p>
+      <h3 class="hero-card-title">{{ cfg.name }}</h3>
+      <p class="hero-card-text">{{ cfg.tagline }}</p>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="about" id="about">
+  <div class="about-label">{{ s.get('our_story_label', 'Our story.') }}</div>
+  <div class="about-content">
+    <h2>{{ s.get('our_story_title', 'About ' + cfg.name) }}</h2>
+    {% for para in cfg.description.split('\n') %}
+      {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
+    {% endfor %}
+  </div>
+</section>
+
+<section class="blog-section">
+  <div class="section-header">
+    <h2 class="section-title">{{ s.get('latest_posts_title', 'Latest posts') }}</h2>
+    <a href="{{ base }}/blog" class="section-link">{{ s.get('view_all', 'View all →') }}</a>
+  </div>
+  <div class="posts-grid">
+    {% if posts %}
+      {% for post in posts[:3] %}
+      <a href="{{ base }}/blog/{{ post.slug }}" class="post-card">
+        <p class="post-category">{{ post.category }}</p>
+        <h3 class="post-title">{{ post.title }}</h3>
+        <p class="post-excerpt">{{ post.excerpt }}</p>
+        <p class="post-date">{{ post.date[:10] }}</p>
+      </a>
+      {% endfor %}
+    {% else %}
+      <p class="empty">{{ s.get('no_posts', 'No posts yet. Check back soon!') }}</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

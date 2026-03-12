@@ -1,0 +1,459 @@
+{
+  "name": "Multi-Blog Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=http://172.17.0.1:8000/api/blogs",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch All Blogs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1520,
+        1344
+      ],
+      "id": "cd25df41-49b9-4dbf-81e5-4182ff169506"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// n8n HTTP Request unpacks array — each item IS already a blog\nconst blogs = items.map(item => item.json);\n\nif (!blogs || blogs.length === 0) return [];\n\nreturn blogs.map(blog => ({ json: { ...blog } }));"
+      },
+      "name": "Split Blogs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1744,
+        1344
+      ],
+      "id": "c056e021-86e7-4ea1-b232-303c69edb6c8"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Loop Over Blogs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1968,
+        1344
+      ],
+      "id": "4a35dc77-89a4-484b-9852-b78358b4c6b1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\n\n// 1. Save to blog API\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `http://172.17.0.1:8000/api/blogs/${d.blog.id}/posts`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    title:   d.topic,\n    content: d.content,\n    category: d.format\n  }),\n  ignoreHttpStatusErrors: true\n});\n\n// 2. Post to Telegram channel if configured\nif (d.blog.telegram_channel) {\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      chat_id: d.blog.telegram_channel,\n      text:    d.content\n    }),\n    ignoreHttpStatusErrors: true\n  });\n}\n\nreturn [{ json: { status: 'published', blog: d.blog.id } }];"
+      },
+      "name": "Publish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        1200
+      ],
+      "id": "1d09943e-d39a-4882-ba0a-9ee3b116b2cb"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8,14,20 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Schedule1",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        1392
+      ],
+      "id": "230ee99a-7aeb-4a71-b460-7485529714da"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://n8n.io"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"arcee-ai/trinity-large-preview:free\",\n  \"max_tokens\": 200,\n  \"temperature\": 0.9,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You generate blog post ideas. Reply ONLY with JSON, no markdown, no explanation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate 1 fresh topic for a {{ $json.niche }} blog called '{{ $json.name }}'. Language: {{ $json.language }}. Return strict JSON: {\\\"topic\\\": \\\"...\\\", \\\"angle\\\": \\\"...\\\", \\\"format\\\": \\\"tip|facts|motivation|myth-busting|plan\\\"}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Generate Topic1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2192,
+        1120
+      ],
+      "id": "e8d796b2-4027-41f5-b9b1-c520b75c4162"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices[0].message.content.trim();\nconst blog = $('Loop Over Blogs').first().json;\n\nlet parsed;\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  parsed = JSON.parse(match[0]);\n} catch(e) {\n  console.log('Topic parse failed:', raw);\n  parsed = { topic: `Best tips for ${blog.niche}`, angle: 'beginner guide', format: 'tip' };\n}\n\nreturn [{ json: { ...parsed, blog } }];"
+      },
+      "name": "Parse Topic1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        1120
+      ],
+      "id": "e0770d3f-9207-4431-97cd-12963ff3de36"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "HTTP-Referer",
+              "value": "https://n8n.io"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"arcee-ai/trinity-large-preview:free\",\n  \"max_tokens\": 700,\n  \"temperature\": 0.85,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an expert content writer for a {{ $json.blog.niche }} blog called '{{ $json.blog.name }}'. Write in {{ $json.blog.language }}. Style: engaging, specific, no fluff. 2-4 emojis. 150-250 words. End with a question or call to action. NO hashtags.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a post.\\nTopic: {{ $json.topic }}\\nAngle: {{ $json.angle }}\\nFormat: {{ $json.format }}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "name": "Generate Post1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2640,
+        1120
+      ],
+      "id": "8b58a887-47f9-4043-b897-1c6b964598c8"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $json.choices[0].message.content.trim();\nconst tokens  = $json.usage?.total_tokens || 0;\nconst prev    = $('Parse Topic1').first().json;\n\nreturn [{ json: {\n  content,\n  tokens,\n  topic:   prev.topic,\n  format:  prev.format,\n  blog:    prev.blog,\n  postId:  Date.now().toString()\n} }];"
+      },
+      "name": "Extract Post1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        1120
+      ],
+      "id": "911e69d1-a66f-48a9-80ef-8d71f225bb75"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\nconst baseUrl = $env.N8N_WEBHOOK_URL || 'http://localhost:5678';\nconst resumePath = $execution.resumeUrl.replace('http://localhost:5678', '');\nconst approveUrl = baseUrl + resumePath + '?action=approve';\nconst rejectUrl  = baseUrl + resumePath + '?action=reject';\n\nconst body = {\n  chat_id:    $env.TELEGRAM_MY_ID,\n  parse_mode: 'HTML',\n  text: `🗂 <b>Blog:</b> ${d.blog.name}\\n📌 <b>Channel:</b> ${d.blog.telegram_channel || 'none'}\\n\\n📝 <b>New Post</b>\\n\\n🏷 <b>Topic:</b> ${d.topic}\\n📐 <b>Format:</b> ${d.format}\\n🔢 <b>Tokens:</b> ${d.tokens}\\n\\n━━━━━━━━━━━━━━━━━━\\n${d.content}\\n━━━━━━━━━━━━━━━━━━`,\n  reply_markup: {\n    inline_keyboard: [[\n      { text: '✅ Publish', url: approveUrl },\n      { text: '❌ Skip',    url: rejectUrl  }\n    ]]\n  }\n};\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(body),\n  returnFullResponse: false,\n  ignoreHttpStatusErrors: true\n});\n\nreturn [{ json: { ...d, approveUrl, rejectUrl } }];"
+      },
+      "name": "Send for Approval1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        1120
+      ],
+      "id": "bed21839-44f7-42d6-a616-392ee222067e"
+    },
+    {
+      "parameters": {
+        "resume": "webhook",
+        "options": {
+          "responseData": "No Response Body"
+        }
+      },
+      "name": "Wait for Button1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        3312,
+        1120
+      ],
+      "webhookId": "blog-approval",
+      "id": "192e4ba6-9cb6-47b4-be8e-b1fca2d79428"
+    },
+    {
+      "parameters": {
+        "jsCode": "const query  = $json.query || {};\nconst action = query.action || 'reject';\nconst approve = action === 'approve';\nconst post   = $('Extract Post1').first().json;\nreturn [{ json: { approve, action, ...post } }];"
+      },
+      "name": "Parse Response1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3536,
+        1120
+      ],
+      "id": "32d3514a-fb89-4e9b-b775-c0e90b536805"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.approve }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Approved?1",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        1120
+      ],
+      "id": "881e4d50-992b-4c4a-b031-21519a4cb8de"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { status: 'skipped', blog: $json.blog.id } }];"
+      },
+      "name": "Skip1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3984,
+        1392
+      ],
+      "id": "498dc424-496d-4cdb-8e29-247887168948"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1296,
+        1200
+      ],
+      "id": "e8ebc46f-e554-4a39-aa7c-bf17439b6888",
+      "name": "When clicking ‘Execute workflow’"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Fetch All Blogs": {
+      "main": [
+        [
+          {
+            "node": "Split Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Blogs": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Blogs": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Generate Topic1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule1": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Topic1": {
+      "main": [
+        [
+          {
+            "node": "Parse Topic1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Topic1": {
+      "main": [
+        [
+          {
+            "node": "Generate Post1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Post1": {
+      "main": [
+        [
+          {
+            "node": "Extract Post1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Post1": {
+      "main": [
+        [
+          {
+            "node": "Send for Approval1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send for Approval1": {
+      "main": [
+        [
+          {
+            "node": "Wait for Button1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Button1": {
+      "main": [
+        [
+          {
+            "node": "Parse Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Response1": {
+      "main": [
+        [
+          {
+            "node": "Approved?1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approved?1": {
+      "main": [
+        [
+          {
+            "node": "Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "4e53ef89-83b2-4a3d-91bf-7fcd8b6d871a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "51297da0f6d00c0a1bd1f1a966a07e308608c476c59e6176dde2088ba6d74b28"
+  },
+  "id": "InMqX6QrjeQG29hS",
+  "tags": []
+}

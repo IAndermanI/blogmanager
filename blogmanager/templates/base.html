@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="{{ cfg.language }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ cfg.name }}{% endblock %}</title>
+
+  {% set theme   = (cfg.theme   | from_json) if cfg.theme   else {} %}
+  {% set strings = (cfg.strings | from_json) if cfg.strings else {} %}
+
+  {% set font_display = theme.get('font_display', 'Cormorant Garamond') %}
+  {% set font_body    = theme.get('font_body',    'DM Sans') %}
+  {% set br           = theme.get('border_radius','0px') %}
+  {% set layout       = theme.get('layout',       'editorial') %}
+  {% set decoration   = theme.get('decoration',   'none') %}
+  {% set spacing      = theme.get('spacing',       'generous') %}
+
+  {# expose strings as s #}
+  {% set s = strings %}
+
+  <link href="https://fonts.googleapis.com/css2?family={{ font_display | replace(' ', '+') }}:ital,wght@0,300;0,400;0,700;1,300;1,400&family={{ font_body | replace(' ', '+') }}:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --primary:  {{ cfg.primary_color }};
+      --accent:   {{ cfg.accent_color }};
+      --bg:       {{ cfg.bg_color }};
+      --text:     {{ cfg.text_color }};
+      --muted:    color-mix(in srgb, {{ cfg.text_color }} 50%, {{ cfg.bg_color }});
+      --glass:    rgba(255,255,255,0.55);
+      --br:       {{ br }};
+      --font-display: '{{ font_display }}', Georgia, serif;
+      --font-body:    '{{ font_body }}', sans-serif;
+      --pad: {% if spacing == 'tight' %}4rem{% elif spacing == 'generous' %}8rem{% else %}6rem{% endif %};
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-weight:300; overflow-x:hidden; }
+
+    {% if decoration == 'dots' %}
+    body::before { content:''; position:fixed; inset:0; background-image:radial-gradient(circle, color-mix(in srgb, var(--primary) 18%, transparent) 1px, transparent 1px); background-size:28px 28px; pointer-events:none; z-index:0; opacity:0.6; }
+    {% elif decoration == 'lines' %}
+    body::before { content:''; position:fixed; inset:0; background-image:repeating-linear-gradient(0deg, color-mix(in srgb, var(--primary) 7%, transparent) 0px, transparent 1px, transparent 60px); pointer-events:none; z-index:0; }
+    {% elif decoration == 'gradient' %}
+    body::before { content:''; position:fixed; inset:0; background:radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--accent) 30%, transparent) 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, color-mix(in srgb, var(--primary) 18%, transparent) 0%, transparent 50%); pointer-events:none; z-index:0; }
+    {% elif decoration == 'organic' %}
+    body::before { content:''; position:fixed; top:-200px; right:-200px; width:600px; height:600px; border-radius:30% 70% 70% 30%/30% 30% 70% 70%; background:color-mix(in srgb, var(--accent) 35%, transparent); pointer-events:none; z-index:0; animation:morph 12s ease-in-out infinite; }
+    @keyframes morph { 0%,100%{border-radius:30% 70% 70% 30%/30% 30% 70% 70%} 50%{border-radius:70% 30% 30% 70%/70% 70% 30% 30%} }
+    {% endif %}
+
+    nav { position:fixed; top:0; left:0; right:0; z-index:50; padding:1.5rem 3rem; display:flex; justify-content:space-between; align-items:center; backdrop-filter:blur(14px); background:color-mix(in srgb, var(--bg) 88%, transparent); border-bottom:1px solid color-mix(in srgb, var(--primary) 18%, transparent); }
+    {% if layout == 'bold' %}
+    nav { background:var(--text); border-bottom:none; }
+    .nav-logo { color:var(--bg) !important; }
+    .nav-links a { color:color-mix(in srgb, var(--bg) 65%, transparent) !important; }
+    .nav-links a:hover { color:var(--primary) !important; }
+    {% endif %}
+    .nav-logo { font-family:var(--font-display); font-size:{% if layout == 'bold' %}1rem{% else %}1.4rem{% endif %}; font-weight:{% if layout == 'bold' %}700{% else %}300{% endif %}; letter-spacing:{% if layout == 'bold' %}0.2em{% else %}0.12em{% endif %}; text-transform:{% if layout == 'bold' %}uppercase{% else %}none{% endif %}; color:var(--text); text-decoration:none; }
+    .nav-links a { font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; margin-left:2rem; transition:color 0.3s; }
+    .nav-links a:hover { color:var(--primary); }
+
+    footer { padding:3rem 6rem; border-top:1px solid color-mix(in srgb, var(--primary) 18%, transparent); display:flex; justify-content:space-between; align-items:center; position:relative; z-index:1; }
+    .footer-logo { font-family:var(--font-display); font-size:1.1rem; font-weight:300; letter-spacing:0.12em; }
+    .footer-copy { font-size:0.72rem; color:var(--muted); }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    @media (max-width:768px) { nav{padding:1.2rem 1.5rem} .nav-links{display:none} footer{flex-direction:column;gap:1rem;padding:2rem 1.5rem} }
+
+    {% block extra_styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<nav>
+  <a href="{{ base }}/" class="nav-logo">{{ cfg.name }}</a>
+  <div class="nav-links">
+    <a href="{{ base }}/blog">{{ s.get('nav_blog', 'Blog') }}</a>
+    <a href="{{ base }}/#about">{{ s.get('nav_about', 'About') }}</a>
+  </div>
+</nav>
+
+{% block content %}{% endblock %}
+
+<footer>
+  <div class="footer-logo">{{ cfg.name }}</div>
+  <div class="footer-copy">© 2026 {{ cfg.name }} · All rights reserved</div>
+</footer>
+
+</body>
+</html>
