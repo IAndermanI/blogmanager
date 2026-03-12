@@ -18,14 +18,7 @@ services:
       - TELEGRAM_MY_ID=${TELEGRAM_MY_ID}
       - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-  ngrok:
-    image: ngrok/ngrok:latest
-    container_name: ngrok
-    restart: always
-    network_mode: bridge
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
-    command: http 172.17.0.1:5678
+
   blog-manager:
     build:
       context: ./blogmanager
@@ -36,3 +29,6 @@ services:
       - "8000:8000"
     volumes:
       - ./blogmanager/data:/app/data
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - AI_MODEL=${AI_MODEL}
