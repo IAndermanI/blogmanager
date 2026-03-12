@@ -329,6 +329,98 @@ def root():
     blogs = list_blogs()
     return {"blogs": [{"id": b["id"], "name": b["name"], "url": f"/{b['id']}/"} for b in blogs]}
 
+
+
+# ── AI endpoints ──────────────────────────────────────────────────────────────
+
+import httpx
+
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+AI_MODEL           = os.environ.get("AI_MODEL", "google/gemini-2.0-flash-exp:free")
+OPENROUTER_URL     = "https://openrouter.ai/api/v1/chat/completions"
+
+async def call_ai(system: str, user: str, max_tokens: int = 800) -> str:
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type":  "application/json",
+                "HTTP-Referer":  "https://blogmanager.local",
+            },
+            json={
+                "model":      AI_MODEL,
+                "max_tokens": max_tokens,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user",   "content": user},
+                ],
+            },
+        )
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"].strip()
+
+class AIBlogPrompt(BaseModel):
+    prompt: str
+
+class AIPostPrompt(BaseModel):
+    prompt: str
+    blog_id: str
+
+@app.post("/api/ai/generate-blog")
+async def ai_generate_blog(data: AIBlogPrompt):
+    system = """You generate blog configuration JSON. 
+Reply ONLY with valid JSON, no markdown, no explanation.
+Schema:
+{
+  "id": "url-slug",
+  "name": "Blog Name",
+  "tagline": "Short catchy phrase (max 6 words)",
+  "description": "3-4 paragraph about text. Use \\n between paragraphs.",
+  "niche": "one word niche",
+  "language": "en or ru",
+  "primary_color": "#hexcolor",
+  "accent_color": "#hexcolor (lighter)",
+  "bg_color": "#hexcolor (very light or dark)",
+  "text_color": "#hexcolor (contrasting to bg)"
+}
+Choose beautiful complementary colors that match the niche/mood."""
+
+    raw = await call_ai(system, data.prompt, max_tokens=600)
+    try:
+        match = re.search(r'\{[\s\S]*\}', raw)
+        result = json.loads(match.group(0))
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"AI returned invalid JSON: {raw[:200]}")
+
+@app.post("/api/ai/generate-post")
+async def ai_generate_post(data: AIPostPrompt):
+    with get_db() as db:
+        blog = db.execute("SELECT * FROM blogs WHERE id=?", (data.blog_id,)).fetchone()
+    if not blog:
+        raise HTTPException(404, "Blog not found")
+    blog = dict(blog)
+
+    system = f"""You are a content writer for '{blog["name"]}', a {blog["niche"]} blog.
+Write in {blog["language"]}. Style: engaging, specific, no fluff. 150-250 words.
+Reply ONLY with valid JSON, no markdown:
+{{
+  "title": "Post title",
+  "content": "Full post text. Use \\n\\n between paragraphs.",
+  "category": "Category name",
+  "excerpt": "1-2 sentence summary"
+}}"""
+
+    raw = await call_ai(system, data.prompt, max_tokens=800)
+    try:
+        match = re.search(r'\{[\s\S]*\}', raw)
+        result = json.loads(match.group(0))
+        return result
+    except Exception as e:
+        raise HTTPException(500, f"AI returned invalid JSON: {raw[:200]}")
+
 @app.get("/admin", response_class=HTMLResponse)
 def admin_panel():
-    return FileResponse("templates/admin.html")
+    with open("templates/admin.html", "r", encoding="utf-8") as f:
+        return HTMLResponse(f.read())
