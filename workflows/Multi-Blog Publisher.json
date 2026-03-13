@@ -3,68 +3,6 @@
   "nodes": [
     {
       "parameters": {
-        "url": "=http://172.17.0.1:8000/api/blogs",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "Fetch All Blogs",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        1520,
-        1344
-      ],
-      "id": "cd25df41-49b9-4dbf-81e5-4182ff169506"
-    },
-    {
-      "parameters": {
-        "jsCode": "const items = $input.all();\n\n// n8n HTTP Request unpacks array — each item IS already a blog\nconst blogs = items.map(item => item.json);\n\nif (!blogs || blogs.length === 0) return [];\n\nreturn blogs.map(blog => ({ json: { ...blog } }));"
-      },
-      "name": "Split Blogs",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1744,
-        1344
-      ],
-      "id": "c056e021-86e7-4ea1-b232-303c69edb6c8"
-    },
-    {
-      "parameters": {
-        "options": {}
-      },
-      "name": "Loop Over Blogs",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
-      "position": [
-        1968,
-        1344
-      ],
-      "id": "4a35dc77-89a4-484b-9852-b78358b4c6b1"
-    },
-    {
-      "parameters": {
-        "jsCode": "const d = $json;\n\n// 1. Save to blog API\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `http://172.17.0.1:8000/api/blogs/${d.blog.id}/posts`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    title:   d.topic,\n    content: d.content,\n    category: d.format\n  }),\n  ignoreHttpStatusErrors: true\n});\n\n// 2. Post to Telegram channel if configured\nif (d.blog.telegram_channel) {\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      chat_id: d.blog.telegram_channel,\n      text:    d.content\n    }),\n    ignoreHttpStatusErrors: true\n  });\n}\n\nreturn [{ json: { status: 'published', blog: d.blog.id } }];"
-      },
-      "name": "Publish",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        3984,
-        1200
-      ],
-      "id": "1d09943e-d39a-4882-ba0a-9ee3b116b2cb"
-    },
-    {
-      "parameters": {
         "rule": {
           "interval": [
             {
@@ -74,14 +12,60 @@
           ]
         }
       },
-      "name": "Schedule1",
+      "name": "Schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [
-        1296,
-        1392
-      ],
+      "position": [160, 300],
       "id": "230ee99a-7aeb-4a71-b460-7485529714da"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [160, 160],
+      "id": "e8ebc46f-e554-4a39-aa7c-bf17439b6888",
+      "name": "Manual Trigger"
+    },
+    {
+      "parameters": {
+        "url": "=http://172.17.0.1:8000/api/blogs",
+        "options": {}
+      },
+      "name": "Fetch All Blogs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [380, 300],
+      "id": "cd25df41-49b9-4dbf-81e5-4182ff169506"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst blogs = items.map(item => item.json);\nif (!blogs || blogs.length === 0) return [];\nreturn blogs.map(blog => ({ json: { ...blog } }));"
+      },
+      "name": "Split Blogs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "id": "c056e021-86e7-4ea1-b232-303c69edb6c8"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Loop Over Blogs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [820, 300],
+      "id": "4a35dc77-89a4-484b-9852-b78358b4c6b1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Inject date context and fetch last 5 post titles to avoid repetition\nconst blog = $json;\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\nconst month = now.getMonth() + 1;\nconst day = now.getDate();\n\n// Seasonal context hints\nconst seasonMap = {\n  12: 'New Year is coming, Christmas season, gift guides are popular',\n  1:  'New Year resolutions, fresh start energy, self-improvement focus',\n  2:  \"Valentine's Day, love and relationships, winter ending\",\n  3:  'Spring is starting, renewal, March 8 International Women\\'s Day',\n  4:  'Spring energy, Easter, outdoor activities returning',\n  5:  'Late spring, summer prep, outdoor lifestyle',\n  6:  'Early summer, vacations, longer days',\n  7:  'Peak summer, travel, heat tips',\n  8:  'Late summer, back to school prep, end of vacation',\n  9:  'Autumn begins, back to routine, cozy vibes',\n  10: 'Deep autumn, Halloween, comfort content',\n  11: 'Pre-holiday season, Black Friday, gratitude theme'\n};\nconst seasonHint = seasonMap[month] || 'no special season';\n\n// Fetch recent post titles to avoid repetition\nlet recentTitles = [];\ntry {\n  const postsResp = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `http://172.17.0.1:8000/api/blogs/${blog.id}/posts`,\n    ignoreHttpStatusErrors: true\n  });\n  const posts = Array.isArray(postsResp) ? postsResp : [];\n  recentTitles = posts.slice(0, 7).map(p => p.title);\n} catch(e) {\n  recentTitles = [];\n}\n\nreturn [{ json: {\n  ...blog,\n  dateStr,\n  seasonHint,\n  recentTitles\n} }];"
+      },
+      "name": "Prepare Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 160],
+      "id": "aabb1234-0001-0001-0001-000000000001"
     },
     {
       "parameters": {
@@ -106,29 +90,25 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"arcee-ai/trinity-large-preview:free\",\n  \"max_tokens\": 200,\n  \"temperature\": 0.9,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You generate blog post ideas. Reply ONLY with JSON, no markdown, no explanation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate 1 fresh topic for a {{ $json.niche }} blog called '{{ $json.name }}'. Language: {{ $json.language }}. Return strict JSON: {\\\"topic\\\": \\\"...\\\", \\\"angle\\\": \\\"...\\\", \\\"format\\\": \\\"tip|facts|motivation|myth-busting|plan\\\"}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"google/gemini-2.0-flash-exp:free\",\n  \"max_tokens\": 250,\n  \"temperature\": 0.9,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You generate blog post topic ideas. Reply ONLY with JSON, no markdown, no explanation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate 1 fresh, specific topic for a {{ $json.niche }} blog called '{{ $json.name }}'.\\nLanguage: {{ $json.language }}\\nToday: {{ $json.dateStr }}\\nSeasonal context: {{ $json.seasonHint }}\\nRecently published titles (DO NOT repeat these topics):\\n{{ $json.recentTitles.join('\\\\n') }}\\n\\nPick a topic that fits the season and hasn't been covered recently. The angle should be specific and ideally counter-intuitive or surprising.\\nReturn strict JSON: {\\\"topic\\\": \\\"...\\\", \\\"angle\\\": \\\"...\\\", \\\"format\\\": \\\"tip|facts|motivation|myth-busting|plan\\\"}\"\n    }\n  ]\n}",
         "options": {}
       },
-      "name": "Generate Topic1",
+      "name": "Generate Topic",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        2192,
-        1120
-      ],
-      "id": "e8d796b2-4027-41f5-b9b1-c520b75c4162"
+      "position": [1260, 160],
+      "id": "e8d796b2-4027-41f5-b9b1-c520b75c4162",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
     },
     {
       "parameters": {
-        "jsCode": "const raw = $json.choices[0].message.content.trim();\nconst blog = $('Loop Over Blogs').first().json;\n\nlet parsed;\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  parsed = JSON.parse(match[0]);\n} catch(e) {\n  console.log('Topic parse failed:', raw);\n  parsed = { topic: `Best tips for ${blog.niche}`, angle: 'beginner guide', format: 'tip' };\n}\n\nreturn [{ json: { ...parsed, blog } }];"
+        "jsCode": "const raw = $json.choices[0].message.content.trim();\nconst blog = $('Prepare Context').first().json;\n\nlet parsed;\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  parsed = JSON.parse(match[0]);\n} catch(e) {\n  console.log('Topic parse failed:', raw);\n  parsed = { topic: `Best tips for ${blog.niche}`, angle: 'beginner guide', format: 'tip' };\n}\n\nreturn [{ json: { ...parsed, blog } }];"
       },
-      "name": "Parse Topic1",
+      "name": "Parse Topic",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2416,
-        1120
-      ],
+      "position": [1480, 160],
       "id": "e0770d3f-9207-4431-97cd-12963ff3de36"
     },
     {
@@ -154,42 +134,35 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"arcee-ai/trinity-large-preview:free\",\n  \"max_tokens\": 700,\n  \"temperature\": 0.85,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are an expert content writer for a {{ $json.blog.niche }} blog called '{{ $json.blog.name }}'. Write in {{ $json.blog.language }}. Style: engaging, specific, no fluff. 2-4 emojis. 150-250 words. End with a question or call to action. NO hashtags.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a post.\\nTopic: {{ $json.topic }}\\nAngle: {{ $json.angle }}\\nFormat: {{ $json.format }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"google/gemini-2.0-flash-exp:free\",\n  \"max_tokens\": 2000,\n  \"temperature\": 0.85,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are the lead writer for '{{ $json.blog.name }}', a {{ $json.blog.niche }} blog. Write in {{ $json.blog.language }}.\\n\\nBLOG VOICE & CONTEXT:\\n{{ $json.blog.description }}\\n\\nToday's date: {{ $json.blog.dateStr }}\\nSeasonal context: {{ $json.blog.seasonHint }}\\n\\nCONTENT REQUIREMENTS:\\n- Length: 600-900 words minimum. Short posts will be rejected.\\n- Structure: hook → context → main content (with subheadings) → actionable takeaway → closing thought.\\n- Start with a strong hook: a surprising fact, a relatable problem, or a bold statement. NEVER start with 'In this article...' or 'Today we will...'\\n- Use specific details, numbers, real examples. Vague advice is useless.\\n- Every paragraph must deliver value. No filler sentences.\\n- Subheadings should read as natural sentences that spark curiosity (not 'Step 1:' or 'Introduction').\\n- End with a concrete takeaway or a thought-provoking question.\\n- 2-4 relevant emojis placed naturally throughout the text.\\n- NO hashtags.\\n- If the seasonal context is relevant to the topic, weave it in naturally.\\n\\nTONE — strictly avoid:\\n- 'In conclusion', 'It is important to note', 'As we can see'\\n- Filler openers like 'Are you looking for...', 'Have you ever wondered...'\\n- Passive voice where active is possible\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a Telegram channel post.\\nTopic: {{ $json.topic }}\\nAngle: {{ $json.angle }}\\nFormat: {{ $json.format }}\"\n    }\n  ]\n}",
         "options": {}
       },
-      "name": "Generate Post1",
+      "name": "Generate Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [
-        2640,
-        1120
-      ],
-      "id": "8b58a887-47f9-4043-b897-1c6b964598c8"
+      "position": [1700, 160],
+      "id": "8b58a887-47f9-4043-b897-1c6b964598c8",
+      "retryOnFail": true,
+      "waitBetweenTries": 3000
     },
     {
       "parameters": {
-        "jsCode": "const content = $json.choices[0].message.content.trim();\nconst tokens  = $json.usage?.total_tokens || 0;\nconst prev    = $('Parse Topic1').first().json;\n\nreturn [{ json: {\n  content,\n  tokens,\n  topic:   prev.topic,\n  format:  prev.format,\n  blog:    prev.blog,\n  postId:  Date.now().toString()\n} }];"
+        "jsCode": "const content = $json.choices[0].message.content.trim();\nconst tokens  = $json.usage?.total_tokens || 0;\nconst prev    = $('Parse Topic').first().json;\n\nreturn [{ json: {\n  content,\n  tokens,\n  topic:   prev.topic,\n  format:  prev.format,\n  blog:    prev.blog,\n  postId:  Date.now().toString()\n} }];"
       },
-      "name": "Extract Post1",
+      "name": "Extract Post",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        2864,
-        1120
-      ],
+      "position": [1920, 160],
       "id": "911e69d1-a66f-48a9-80ef-8d71f225bb75"
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\nconst baseUrl = $env.N8N_WEBHOOK_URL || 'http://localhost:5678';\nconst resumePath = $execution.resumeUrl.replace('http://localhost:5678', '');\nconst approveUrl = baseUrl + resumePath + '?action=approve';\nconst rejectUrl  = baseUrl + resumePath + '?action=reject';\n\nconst body = {\n  chat_id:    $env.TELEGRAM_MY_ID,\n  parse_mode: 'HTML',\n  text: `🗂 <b>Blog:</b> ${d.blog.name}\\n📌 <b>Channel:</b> ${d.blog.telegram_channel || 'none'}\\n\\n📝 <b>New Post</b>\\n\\n🏷 <b>Topic:</b> ${d.topic}\\n📐 <b>Format:</b> ${d.format}\\n🔢 <b>Tokens:</b> ${d.tokens}\\n\\n━━━━━━━━━━━━━━━━━━\\n${d.content}\\n━━━━━━━━━━━━━━━━━━`,\n  reply_markup: {\n    inline_keyboard: [[\n      { text: '✅ Publish', url: approveUrl },\n      { text: '❌ Skip',    url: rejectUrl  }\n    ]]\n  }\n};\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(body),\n  returnFullResponse: false,\n  ignoreHttpStatusErrors: true\n});\n\nreturn [{ json: { ...d, approveUrl, rejectUrl } }];"
+        "jsCode": "const d = $input.first().json;\n\nconst baseUrl = $env.N8N_WEBHOOK_URL || 'http://localhost:5678';\nconst resumePath = $execution.resumeUrl.replace('http://localhost:5678', '');\nconst approveUrl = baseUrl + resumePath + '?action=approve';\nconst rejectUrl  = baseUrl + resumePath + '?action=reject';\n\nconst preview = d.content.length > 400 ? d.content.slice(0, 400) + '...' : d.content;\n\nconst body = {\n  chat_id:    $env.TELEGRAM_MY_ID,\n  parse_mode: 'HTML',\n  text: `🗂 <b>${d.blog.name}</b>  ·  ${d.blog.niche}\\n📌 <b>Channel:</b> ${d.blog.telegram_channel || 'none'}\\n🗓 ${d.blog.dateStr || ''}\\n\\n🏷 <b>Topic:</b> ${d.topic}\\n📐 <b>Format:</b> ${d.format}\\n🔢 <b>Tokens:</b> ${d.tokens}\\n\\n━━━━━━━━━━━━━━━━━━\\n${preview}\\n━━━━━━━━━━━━━━━━━━`,\n  reply_markup: {\n    inline_keyboard: [[\n      { text: '✅ Publish', url: approveUrl },\n      { text: '❌ Skip',    url: rejectUrl  }\n    ]]\n  }\n};\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(body),\n  returnFullResponse: false,\n  ignoreHttpStatusErrors: true\n});\n\nreturn [{ json: { ...d, approveUrl, rejectUrl } }];"
       },
-      "name": "Send for Approval1",
+      "name": "Send for Approval",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3088,
-        1120
-      ],
+      "position": [2140, 160],
       "id": "bed21839-44f7-42d6-a616-392ee222067e"
     },
     {
@@ -199,27 +172,21 @@
           "responseData": "No Response Body"
         }
       },
-      "name": "Wait for Button1",
+      "name": "Wait for Button",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
-      "position": [
-        3312,
-        1120
-      ],
+      "position": [2360, 160],
       "webhookId": "blog-approval",
       "id": "192e4ba6-9cb6-47b4-be8e-b1fca2d79428"
     },
     {
       "parameters": {
-        "jsCode": "const query  = $json.query || {};\nconst action = query.action || 'reject';\nconst approve = action === 'approve';\nconst post   = $('Extract Post1').first().json;\nreturn [{ json: { approve, action, ...post } }];"
+        "jsCode": "const query  = $json.query || {};\nconst action = query.action || 'reject';\nconst approve = action === 'approve';\nconst post   = $('Extract Post').first().json;\nreturn [{ json: { approve, action, ...post } }];"
       },
-      "name": "Parse Response1",
+      "name": "Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3536,
-        1120
-      ],
+      "position": [2580, 160],
       "id": "32d3514a-fb89-4e9b-b775-c0e90b536805"
     },
     {
@@ -233,226 +200,111 @@
           ]
         }
       },
-      "name": "Approved?1",
+      "name": "Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [
-        3760,
-        1120
-      ],
+      "position": [2800, 160],
       "id": "881e4d50-992b-4c4a-b031-21519a4cb8de"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $json;\n\n// 1. Save to blog API\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `http://172.17.0.1:8000/api/blogs/${d.blog.id}/posts`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    title:    d.topic,\n    content:  d.content,\n    category: d.format\n  }),\n  ignoreHttpStatusErrors: true\n});\n\n// 2. Post to Telegram channel if configured\nif (d.blog.telegram_channel) {\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      chat_id: d.blog.telegram_channel,\n      text:    d.content\n    }),\n    ignoreHttpStatusErrors: true\n  });\n}\n\nreturn [{ json: { status: 'published', blog: d.blog.id, topic: d.topic } }];"
+      },
+      "name": "Publish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3020, 60],
+      "id": "1d09943e-d39a-4882-ba0a-9ee3b116b2cb"
     },
     {
       "parameters": {
         "jsCode": "return [{ json: { status: 'skipped', blog: $json.blog.id } }];"
       },
-      "name": "Skip1",
+      "name": "Skip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        3984,
-        1392
-      ],
+      "position": [3020, 280],
       "id": "498dc424-496d-4cdb-8e29-247887168948"
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        1296,
-        1200
-      ],
-      "id": "e8ebc46f-e554-4a39-aa7c-bf17439b6888",
-      "name": "When clicking ‘Execute workflow’"
+      "parameters": {
+        "jsCode": "// After publish or skip — continue loop to next blog\nreturn [{ json: $json }];"
+      },
+      "name": "Next Blog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3240, 160],
+      "id": "aabb1234-0001-0001-0001-000000000002"
     }
   ],
   "pinData": {},
   "connections": {
+    "Manual Trigger": {
+      "main": [[{ "node": "Fetch All Blogs", "type": "main", "index": 0 }]]
+    },
+    "Schedule": {
+      "main": [[{ "node": "Fetch All Blogs", "type": "main", "index": 0 }]]
+    },
     "Fetch All Blogs": {
-      "main": [
-        [
-          {
-            "node": "Split Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Split Blogs", "type": "main", "index": 0 }]]
     },
     "Split Blogs": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Loop Over Blogs", "type": "main", "index": 0 }]]
     },
     "Loop Over Blogs": {
       "main": [
         [],
-        [
-          {
-            "node": "Generate Topic1",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "Prepare Context", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare Context": {
+      "main": [[{ "node": "Generate Topic", "type": "main", "index": 0 }]]
+    },
+    "Generate Topic": {
+      "main": [[{ "node": "Parse Topic", "type": "main", "index": 0 }]]
+    },
+    "Parse Topic": {
+      "main": [[{ "node": "Generate Post", "type": "main", "index": 0 }]]
+    },
+    "Generate Post": {
+      "main": [[{ "node": "Extract Post", "type": "main", "index": 0 }]]
+    },
+    "Extract Post": {
+      "main": [[{ "node": "Send for Approval", "type": "main", "index": 0 }]]
+    },
+    "Send for Approval": {
+      "main": [[{ "node": "Wait for Button", "type": "main", "index": 0 }]]
+    },
+    "Wait for Button": {
+      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
+    },
+    "Parse Response": {
+      "main": [[{ "node": "Approved?", "type": "main", "index": 0 }]]
+    },
+    "Approved?": {
+      "main": [
+        [{ "node": "Publish", "type": "main", "index": 0 }],
+        [{ "node": "Skip", "type": "main", "index": 0 }]
       ]
     },
     "Publish": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "Next Blog", "type": "main", "index": 0 }]]
     },
-    "Schedule1": {
-      "main": [
-        [
-          {
-            "node": "Fetch All Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Skip": {
+      "main": [[{ "node": "Next Blog", "type": "main", "index": 0 }]]
     },
-    "Generate Topic1": {
-      "main": [
-        [
-          {
-            "node": "Parse Topic1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Topic1": {
-      "main": [
-        [
-          {
-            "node": "Generate Post1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Post1": {
-      "main": [
-        [
-          {
-            "node": "Extract Post1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Post1": {
-      "main": [
-        [
-          {
-            "node": "Send for Approval1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send for Approval1": {
-      "main": [
-        [
-          {
-            "node": "Wait for Button1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Wait for Button1": {
-      "main": [
-        [
-          {
-            "node": "Parse Response1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Response1": {
-      "main": [
-        [
-          {
-            "node": "Approved?1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Approved?1": {
-      "main": [
-        [
-          {
-            "node": "Publish",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Skip1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Skip1": {
-      "main": [
-        [
-          {
-            "node": "Loop Over Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "Fetch All Blogs",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Next Blog": {
+      "main": [[{ "node": "Loop Over Blogs", "type": "main", "index": 0 }]]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
+    "executionOrder": "v1"
   },
-  "versionId": "4e53ef89-83b2-4a3d-91bf-7fcd8b6d871a",
+  "versionId": "cb46d890-9aaa-4dd4-baaa-c1c5fb46e937",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "51297da0f6d00c0a1bd1f1a966a07e308608c476c59e6176dde2088ba6d74b28"
+    "instanceId": "b7841e880b4643b1e60e3bebe2ab485bb33c78bba18349bc6f64c1bd5f9619cf"
   },
   "id": "InMqX6QrjeQG29hS",
   "tags": []
