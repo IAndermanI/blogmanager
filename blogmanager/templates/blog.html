@@ -1,37 +1,33 @@
 {% extends "base.html" %}
 {% block title %}{{ t.blog_nav }} — {{ cfg.name }}{% endblock %}
-
 {% block extra_styles %}
-.blog-header { padding: 12rem 6rem 4rem; border-bottom: 1px solid color-mix(in srgb, var(--primary) 15%, transparent); }
-.blog-header-eyebrow { font-size: 0.72rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--primary); margin-bottom: 1rem; }
-.blog-header h1 { font-family: 'Cormorant Garamond', serif; font-size: clamp(3rem, 5vw, 5rem); font-weight: 300; }
-.blog-header h1 em { font-style: italic; color: var(--primary); }
-.blog-content { padding: 4rem 6rem 8rem; }
-.post-item { display: grid; grid-template-columns: 200px 1fr auto; gap: 3rem; align-items: start; padding: 2.5rem 0; border-bottom: 1px solid color-mix(in srgb, var(--primary) 15%, transparent); text-decoration: none; color: inherit; transition: all 0.3s; }
-.post-item:hover { padding-left: 1rem; }
-.post-item:hover .post-item-title { color: var(--primary); }
-.post-item-meta { display: flex; flex-direction: column; gap: 0.5rem; padding-top: 0.25rem; }
-.post-item-date { font-size: 0.75rem; color: var(--muted); }
-.post-item-category { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--primary); }
-.post-item-title { font-family: 'Cormorant Garamond', serif; font-size: 1.8rem; font-weight: 300; line-height: 1.2; margin-bottom: 0.75rem; transition: color 0.3s; }
-.post-item-excerpt { font-size: 0.88rem; line-height: 1.7; color: var(--muted); }
-.post-item-arrow { font-size: 1.5rem; color: var(--accent); padding-top: 0.5rem; transition: transform 0.3s, color 0.3s; }
-.post-item:hover .post-item-arrow { transform: translateX(4px); color: var(--primary); }
-.empty { padding: 6rem 0; text-align: center; color: var(--muted); font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-style: italic; }
-@media (max-width: 768px) {
-  .blog-header { padding: 8rem 1.5rem 3rem; }
-  .blog-content { padding: 2rem 1.5rem 4rem; }
-  .post-item { grid-template-columns: 1fr; gap: 0.5rem; }
-  .post-item-arrow { display: none; }
+.blog-header { padding:12rem 6rem 4rem; border-bottom:1px solid color-mix(in srgb, var(--primary) 15%, transparent); }
+.blog-header-eyebrow { font-size:0.72rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--primary); margin-bottom:1rem; }
+.blog-header h1 { font-family:'Cormorant Garamond',serif; font-size:clamp(3rem,5vw,5rem); font-weight:300; }
+.blog-content { padding:4rem 6rem 8rem; }
+.post-item { display:grid; grid-template-columns:200px 1fr auto; gap:3rem; align-items:start; padding:2.5rem 0; border-bottom:1px solid color-mix(in srgb, var(--primary) 15%, transparent); text-decoration:none; color:inherit; transition:all 0.3s; }
+.post-item:hover { padding-left:1rem; }
+.post-item:hover .post-item-title { color:var(--primary); }
+.post-item-meta { display:flex; flex-direction:column; gap:0.5rem; padding-top:0.25rem; }
+.post-item-date { font-size:0.75rem; color:var(--muted); }
+.post-item-category { font-size:0.65rem; letter-spacing:0.15em; text-transform:uppercase; color:var(--primary); }
+.post-item-title { font-family:'Cormorant Garamond',serif; font-size:1.8rem; font-weight:300; line-height:1.2; margin-bottom:0.75rem; transition:color 0.3s; }
+.post-item-excerpt { font-size:0.88rem; line-height:1.7; color:var(--muted); }
+.post-item-arrow { font-size:1.5rem; color:var(--accent); padding-top:0.5rem; transition:transform 0.3s, color 0.3s; }
+.post-item:hover .post-item-arrow { transform:translateX(4px); color:var(--primary); }
+.empty { padding:6rem 0; text-align:center; color:var(--muted); font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-style:italic; }
+@media (max-width:768px) {
+  .blog-header { padding:8rem 1.5rem 3rem; }
+  .blog-content { padding:2rem 1.5rem 4rem; }
+  .post-item { grid-template-columns:1fr; gap:0.5rem; }
+  .post-item-arrow { display:none; }
 }
 {% endblock %}
-
 {% block content %}
 <div class="blog-header">
   <p class="blog-header-eyebrow">{{ cfg.niche }}</p>
   <h1>{{ t.all_posts }}</h1>
 </div>
-
 <div class="blog-content">
   {% if posts %}
     {% for post in posts %}

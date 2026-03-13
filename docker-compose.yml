@@ -18,6 +18,7 @@ services:
       - TELEGRAM_MY_ID=${TELEGRAM_MY_ID}
       - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - AI_MODEL=${AI_MODEL}
 
   blog-manager:
     build:
