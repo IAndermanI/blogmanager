@@ -19,6 +19,45 @@ DB_PATH = "data/blogs.db"
 Path("data").mkdir(exist_ok=True)
 jinja = Environment(loader=FileSystemLoader("templates"), autoescape=True)
 
+def markdown_to_html(text: str) -> str:
+    """Minimal markdown: ## headings, **bold**, - bullet lists."""
+    import html as html_lib
+    lines = text.split("\n")
+    result = []
+    in_list = False
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            if in_list:
+                result.append("<\/ul>")
+                in_list = False
+            result.append("")
+            continue
+        if stripped.startswith("## "):
+            if in_list: result.append("<\/ul>"); in_list = False
+            result.append(f"<h2>{html_lib.escape(stripped[3:])}<\/h2>")
+            continue
+        if stripped.startswith("### "):
+            if in_list: result.append("<\/ul>"); in_list = False
+            result.append(f"<h3>{html_lib.escape(stripped[4:])}<\/h3>")
+            continue
+        if stripped.startswith("- ") or stripped.startswith("* "):
+            if not in_list:
+                result.append("<ul>")
+                in_list = True
+            c = html_lib.escape(stripped[2:])
+            c = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1<\/strong>", c)
+            result.append(f"<li>{c}<\/li>")
+            continue
+        if in_list: result.append("<\/ul>"); in_list = False
+        c = html_lib.escape(stripped)
+        c = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1<\/strong>", c)
+        result.append(f"<p>{c}<\/p>")
+    if in_list: result.append("<\/ul>")
+    return "\n".join(result)
+
+jinja.filters["markdown"] = markdown_to_html
+
 def get_db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -254,8 +293,10 @@ Schema: {"id":"url-slug","name":"Blog Name","tagline":"Short phrase (max 6 words
 "description":"3-4 paragraphs. Use \\n between them.","niche":"one word",
 "language":"en or ru","primary_color":"#hex","accent_color":"#hex lighter",
 "bg_color":"#hex very light","text_color":"#hex contrasting"}
-Choose beautiful colors matching the niche/mood."""
-    raw = await call_ai(system, data.prompt, 600)
+Choose beautiful colors matching the niche/mood.
+The description must feel personal and real — like a human editor wrote it, not a marketing bot.
+Avoid generic phrases like 'welcome to our blog' or 'here you will find'. Be specific about the niche and the audience."""
+    raw = await call_ai(system, data.prompt, 700)
     try:
         return json.loads(re.search(r'\{[\s\S]*\}', raw).group(0))
     except:
@@ -267,12 +308,38 @@ async def ai_generate_post(data: AIPostPrompt):
         blog = db.execute("SELECT * FROM blogs WHERE id=?", (data.blog_id,)).fetchone()
     if not blog: raise HTTPException(404, "Blog not found")
     blog = dict(blog)
-    system = f"""You are a content writer for '{blog["name"]}', a {blog["niche"]} blog.
-Write in {blog["language"]}. Style: engaging, specific, no fluff. 150-250 words.
-Reply ONLY with valid JSON, no markdown:
-{{"title":"Post title","content":"Full text. Use \\n\\n between paragraphs.",
-"category":"Category","excerpt":"1-2 sentence summary"}}"""
-    raw = await call_ai(system, data.prompt, 800)
+    lang_instruction = (
+        "Write entirely in Russian. Use natural, conversational Russian — not formal or translated-sounding."
+        if blog["language"] == "ru"
+        else "Write entirely in English. Use a warm, direct tone — like a knowledgeable friend, not a copywriter."
+    )
+    system = f"""You are the lead writer for "{blog["name"]}", a {blog["niche"]} blog.
+{lang_instruction}
+
+CONTENT REQUIREMENTS:
+- Length: 600-900 words minimum. Short posts will be rejected.
+- Structure: hook → context → main content (with subheadings) → actionable takeaway → closing thought.
+- Start with a strong hook: a surprising fact, a relatable problem, or a bold statement. NEVER start with "In this article..." or "Today we will..."
+- Use specific details, numbers, real examples. Vague advice is useless.
+- Every paragraph must deliver value. No filler sentences.
+- Subheadings should read as natural sentences that spark curiosity (not "Step 1:" or "Introduction").
+- End with a concrete takeaway or a thought-provoking question for the reader.
+
+FORMATTING (use inside the content JSON field):
+- \\n\\n between paragraphs
+- ## before each subheading
+- **bold** for key terms (max 2-3 per post)
+- Bullet lists using - for steps or comparisons (optional)
+
+TONE RULES — strictly avoid:
+- "In conclusion", "It is important to note", "As we can see", "In today's world"
+- Filler openers like "Are you looking for...", "Have you ever wondered..."
+- Passive voice where active is possible
+- Saying "you might want to consider" instead of just "do X"
+
+Reply ONLY with valid JSON, no markdown wrapper, no extra text:
+{{"title":"Specific, compelling title — not generic","content":"Full post, minimum 600 words, following all requirements. Use \\n\\n for paragraphs and ## for subheadings.","category":"Specific category","excerpt":"2-3 sentences that hook the reader. Include one specific detail or surprising fact from the post."}}"""
+    raw = await call_ai(system, data.prompt, 2000)
     try:
         return json.loads(re.search(r'\{[\s\S]*\}', raw).group(0))
     except:
