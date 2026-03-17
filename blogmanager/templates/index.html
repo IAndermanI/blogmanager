@@ -69,9 +69,9 @@
   </div>
 </section>
 <section class="about" id="about">
-  <div class="about-label">{{ t.our_story }}</div>
+  
   <div class="about-content">
-    <h2>{{ t.about }} {{ cfg.name }}</h2>
+    <h2>{{ t.about }}</h2>
     {% for para in cfg.description.split('\n') %}
       {% if para.strip() %}<p>{{ para.strip() }}</p>{% endif %}
     {% endfor %}

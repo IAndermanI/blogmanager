@@ -5,18 +5,26 @@
 .post-eyebrow { font-size:0.72rem; letter-spacing:0.25em; text-transform:uppercase; color:var(--primary); margin-bottom:1.5rem; }
 .post-eyebrow a { color:var(--muted); text-decoration:none; }
 .post-eyebrow a:hover { color:var(--primary); }
-.post-title { font-family:'Cormorant Garamond',serif; font-size:clamp(2.5rem,5vw,4rem); font-weight:300; line-height:1.1; margin-bottom:1.5rem; }
+.post-title { font-family:var(--font-serif); font-size:clamp(2.5rem,5vw,4rem); font-weight:300; line-height:1.1; margin-bottom:1.5rem; }
 .post-meta { font-size:0.75rem; color:var(--muted); }
+.post-cover { width:100%; max-height:480px; object-fit:cover; display:block; margin-bottom:0; }
+.post-cover-credit { font-size:0.65rem; color:var(--muted); padding:0.4rem 6rem; text-align:right; }
+.post-cover-credit a { color:var(--muted); text-decoration:none; border-bottom:1px solid color-mix(in srgb, var(--muted) 40%, transparent); }
 .post-body { padding:4rem 6rem 8rem; max-width:860px; }
 .post-body p { font-size:1rem; line-height:1.9; color:var(--muted); margin-bottom:1.5rem; }
-.post-body h2 { font-family:'Cormorant Garamond',serif; font-size:1.8rem; font-weight:300; margin:2.5rem 0 1rem; }
-.post-body h3 { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:300; margin:2rem 0 0.75rem; }
+.post-body h2 { font-family:var(--font-serif); font-size:1.8rem; font-weight:300; margin:2.5rem 0 1rem; }
+.post-body h3 { font-family:var(--font-serif); font-size:1.4rem; font-weight:300; margin:2rem 0 0.75rem; }
 .post-body ul, .post-body ol { padding-left:1.5rem; margin-bottom:1.5rem; }
 .post-body li { font-size:1rem; line-height:1.9; color:var(--muted); margin-bottom:0.4rem; }
 .post-back { display:inline-flex; align-items:center; gap:0.5rem; color:var(--muted); text-decoration:none; font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; margin-bottom:3rem; transition:color 0.2s; }
 .post-back:hover { color:var(--primary); }
+.post-figure { margin:2.5rem 0; }
+.post-inline-photo { width:100%; max-height:420px; object-fit:cover; display:block; }
+.post-photo-credit { font-size:0.65rem; color:var(--muted); margin-top:0.4rem; text-align:right; }
+.post-photo-credit a { color:var(--muted); text-decoration:none; border-bottom:1px solid color-mix(in srgb, var(--muted) 40%, transparent); }
 @media (max-width:768px) {
   .post-hero { padding:8rem 1.5rem 3rem; }
+  .post-cover-credit { padding:0.4rem 1.5rem; }
   .post-body { padding:2rem 1.5rem 4rem; }
 }
 {% endblock %}
@@ -29,6 +37,15 @@
   <h1 class="post-title">{{ post.title }}</h1>
   <p class="post-meta">{{ post.date[:10] }}</p>
 </div>
+{% if post.photo_url %}
+<img class="post-cover" src="{{ post.photo_url }}" alt="{{ post.title }}" loading="lazy">
+{% if post.photo_author %}
+<p class="post-cover-credit">
+  Photo by <a href="{{ post.photo_author_url }}" target="_blank" rel="noopener">{{ post.photo_author }}</a>
+  on <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a>
+</p>
+{% endif %}
+{% endif %}
 <div class="post-body">
   {{ post.content | markdown | safe }}
 </div>

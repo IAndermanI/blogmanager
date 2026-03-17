@@ -429,6 +429,16 @@
         <div class="form-group"><label>Niche</label><input id="f-niche" placeholder="K-Beauty"></div>
         <div class="form-group"><label>Language</label><input id="f-language" placeholder="en" value="en"></div>
         <div class="form-group"><label>Telegram Channel</label><input id="f-tg" placeholder="@mychannel"></div>
+        <div class="form-group"><label>Theme / Style</label>
+          <select id="f-theme" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.5rem;font-family:var(--mono);font-size:0.8rem;width:100%">
+            <option value="feminine">Feminine — Cormorant Garamond, elegant</option>
+            <option value="neutral">Neutral — DM Serif + Inter, clean</option>
+            <option value="masculine">Masculine — Bebas Neue + IBM Plex, bold</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label>System Prompt (AI voice for this blog)</label>
+          <textarea id="f-system-prompt" placeholder="e.g. Write like a direct, no-nonsense car mechanic. No fluff. Use simple sentences. Avoid quotes around ordinary words." style="min-height:90px"></textarea>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="card-title">Colors</div>
@@ -476,6 +486,8 @@
         niche: document.getElementById('f-niche').value.trim(),
         language: document.getElementById('f-language').value.trim(),
         telegram_channel: document.getElementById('f-tg').value.trim() || null,
+        theme: document.getElementById('f-theme').value,
+        system_prompt: document.getElementById('f-system-prompt').value.trim() || null,
         primary_color: document.getElementById('f-primary').value,
         accent_color: document.getElementById('f-accent').value,
         bg_color: document.getElementById('f-bg').value,
@@ -500,6 +512,16 @@
         <div class="form-group"><label>Niche</label><input id="e-niche" value="${b.niche}"></div>
         <div class="form-group"><label>Language</label><input id="e-language" value="${b.language}"></div>
         <div class="form-group form-full"><label>Telegram Channel</label><input id="e-tg" value="${b.telegram_channel || ''}"></div>
+        <div class="form-group"><label>Theme / Style</label>
+          <select id="e-theme" style="background:var(--surface);color:var(--text);border:1px solid var(--border);padding:0.5rem;font-family:var(--mono);font-size:0.8rem;width:100%">
+            <option value="feminine" ${b.theme === 'feminine' || !b.theme ? 'selected' : ''}>Feminine — Cormorant Garamond, elegant</option>
+            <option value="neutral" ${b.theme === 'neutral' ? 'selected' : ''}>Neutral — DM Serif + Inter, clean</option>
+            <option value="masculine" ${b.theme === 'masculine' ? 'selected' : ''}>Masculine — Bebas Neue + IBM Plex, bold</option>
+          </select>
+        </div>
+        <div class="form-group form-full"><label>System Prompt (AI voice)</label>
+          <textarea id="e-system-prompt" placeholder="AI writing instructions for this blog..." style="min-height:90px">${b.system_prompt || ''}</textarea>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="card-title">Colors</div>
@@ -524,6 +546,8 @@
         niche: document.getElementById('e-niche').value.trim(),
         language: document.getElementById('e-language').value.trim(),
         telegram_channel: document.getElementById('e-tg').value.trim() || null,
+        theme: document.getElementById('e-theme').value,
+        system_prompt: document.getElementById('e-system-prompt').value.trim() || null,
         primary_color: document.getElementById('e-primary').value,
         accent_color: document.getElementById('e-accent').value,
         bg_color: document.getElementById('e-bg').value,

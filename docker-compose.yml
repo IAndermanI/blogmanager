@@ -19,6 +19,7 @@ services:
       - TELEGRAM_CHANNEL_ID=${TELEGRAM_CHANNEL_ID}
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - AI_MODEL=${AI_MODEL}
+      - UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}
 
   blog-manager:
     build:
@@ -30,6 +31,8 @@ services:
       - "8000:8000"
     volumes:
       - ./blogmanager/data:/app/data
+      - ./blogmanager:/app
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - AI_MODEL=${AI_MODEL}
+      - UNSPLASH_ACCESS_KEY=${UNSPLASH_ACCESS_KEY}

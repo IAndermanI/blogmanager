@@ -4,7 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ cfg.name }}{% endblock %}</title>
+
+  {% set theme = cfg.theme | default('feminine') %}
+
+  {% if theme == 'masculine' %}
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  {% elif theme == 'neutral' %}
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+  {% else %}
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,700;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  {% endif %}
+
   <style>
     :root {
       --primary: {{ cfg.primary_color }};
@@ -13,16 +23,37 @@
       --text:    {{ cfg.text_color }};
       --muted:   color-mix(in srgb, {{ cfg.text_color }} 50%, {{ cfg.bg_color }});
       --glass:   rgba(255,255,255,0.55);
+
+      {% if theme == 'masculine' %}
+      --font-serif: 'Bebas Neue', sans-serif;
+      --font-sans:  'IBM Plex Sans', sans-serif;
+      --nav-size: 1.2rem;
+      --nav-tracking: 0.18em;
+      {% elif theme == 'neutral' %}
+      --font-serif: 'DM Serif Display', serif;
+      --font-sans:  'Inter', sans-serif;
+      --nav-size: 1.1rem;
+      --nav-tracking: 0.06em;
+      {% else %}
+      --font-serif: 'Cormorant Garamond', serif;
+      --font-sans:  'DM Sans', sans-serif;
+      --nav-size: 1.4rem;
+      --nav-tracking: 0.12em;
+      {% endif %}
     }
+
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:var(--bg); color:var(--text); font-family:'DM Sans',sans-serif; font-weight:300; overflow-x:hidden; }
+    body { background:var(--bg); color:var(--text); font-family:var(--font-sans); font-weight:300; overflow-x:hidden; }
+
     nav { position:fixed; top:0; left:0; right:0; z-index:50; padding:1.5rem 3rem; display:flex; justify-content:space-between; align-items:center; backdrop-filter:blur(14px); background:color-mix(in srgb, var(--bg) 88%, transparent); border-bottom:1px solid color-mix(in srgb, var(--primary) 18%, transparent); }
-    .nav-logo { font-family:'Cormorant Garamond',serif; font-size:1.4rem; font-weight:300; letter-spacing:0.12em; color:var(--text); text-decoration:none; }
-    .nav-links a { font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; margin-left:2rem; transition:color 0.3s; }
+    .nav-logo { font-family:var(--font-serif); font-size:var(--nav-size); font-weight:300; letter-spacing:var(--nav-tracking); color:var(--text); text-decoration:none; }
+    .nav-links a { font-size:0.78rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--muted); text-decoration:none; margin-left:2rem; transition:color 0.3s; font-family:var(--font-sans); }
     .nav-links a:hover { color:var(--primary); }
+
     footer { padding:3rem 6rem; border-top:1px solid color-mix(in srgb, var(--primary) 18%, transparent); display:flex; justify-content:space-between; align-items:center; }
-    .footer-logo { font-family:'Cormorant Garamond',serif; font-size:1.1rem; font-weight:300; letter-spacing:0.12em; }
+    .footer-logo { font-family:var(--font-serif); font-size:1.1rem; font-weight:300; letter-spacing:var(--nav-tracking); }
     .footer-copy { font-size:0.72rem; color:var(--muted); }
+
     @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
     @keyframes fadeIn { from{opacity:0} to{opacity:1} }
     @media (max-width:768px) { nav{padding:1.2rem 1.5rem} .nav-links{display:none} footer{flex-direction:column;gap:1rem;padding:2rem 1.5rem} }
@@ -40,7 +71,7 @@
 {% block content %}{% endblock %}
 <footer>
   <div class="footer-logo">{{ cfg.name }}</div>
-  <div class="footer-copy">© 2026 {{ cfg.name }} · All rights reserved</div>
+  <div class="footer-copy">© 2026 {{ cfg.name }}</div>
 </footer>
 </body>
 </html>

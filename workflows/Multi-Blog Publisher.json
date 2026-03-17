@@ -7,7 +7,7 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 8,14,20 * * *"
+              "expression": "0 9-20 * * 1-5"
             }
           ]
         }
@@ -15,16 +15,35 @@
       "name": "Schedule",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1,
-      "position": [160, 300],
-      "id": "230ee99a-7aeb-4a71-b460-7485529714da"
+      "position": [
+        160,
+        300
+      ],
+      "id": "sched-001"
     },
     {
       "parameters": {},
+      "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [160, 160],
-      "id": "e8ebc46f-e554-4a39-aa7c-bf17439b6888",
-      "name": "Manual Trigger"
+      "position": [
+        160,
+        160
+      ],
+      "id": "manual-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst day = now.getDay();\nif (day === 0 || day === 6) return [];\nreturn [{ json: { hour: now.getHours(), day } }];"
+      },
+      "name": "Schedule Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        300
+      ],
+      "id": "sched-check-001"
     },
     {
       "parameters": {
@@ -34,18 +53,37 @@
       "name": "Fetch All Blogs",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4,
-      "position": [380, 300],
-      "id": "cd25df41-49b9-4dbf-81e5-4182ff169506"
+      "position": [
+        600,
+        300
+      ],
+      "id": "fetch-blogs-001"
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst blogs = items.map(item => item.json);\nif (!blogs || blogs.length === 0) return [];\nreturn blogs.map(blog => ({ json: { ...blog } }));"
+        "jsCode": "const items = $input.all();\nconst now = new Date();\nconst hour = now.getHours();\n\n// Если запуск ручной — берём все блоги без фильтрации\nconst isManual = $execution.mode === 'manual';\nif (isManual) {\n  return items.map(item => ({ json: item.json }));\n}\n\nfunction hash(str) {\n  let h = 0;\n  for (let i = 0; i < str.length; i++) {\n    h = ((h << 5) - h) + str.charCodeAt(i);\n    h |= 0;\n  }\n  return Math.abs(h);\n}\n\nconst dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;\nconst windows = [[9,10,11],[12,13,14,15],[17,18,19,20]];\n\nconst filtered = items.filter(item => {\n  const blog = item.json;\n  const h = hash(`${dateKey}-${blog.id}`);\n  const window = windows[h % 3];\n  const publishHour = window[Math.floor(h / 3) % window.length];\n  return hour === publishHour;\n});\n\nif (filtered.length === 0) return [];\nreturn filtered.map(item => ({ json: item.json }));"
+      },
+      "name": "Filter Blogs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        300
+      ],
+      "id": "filter-blogs-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(i => ({ json: i.json }));"
       },
       "name": "Split Blogs",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [600, 300],
-      "id": "c056e021-86e7-4ea1-b232-303c69edb6c8"
+      "position": [
+        1040,
+        300
+      ],
+      "id": "split-001"
     },
     {
       "parameters": {
@@ -54,254 +92,264 @@
       "name": "Loop Over Blogs",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [820, 300],
-      "id": "4a35dc77-89a4-484b-9852-b78358b4c6b1"
+      "position": [
+        1260,
+        300
+      ],
+      "id": "loop-001"
     },
     {
       "parameters": {
-        "jsCode": "// Inject date context and fetch last 5 post titles to avoid repetition\nconst blog = $json;\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });\nconst month = now.getMonth() + 1;\nconst day = now.getDate();\n\n// Seasonal context hints\nconst seasonMap = {\n  12: 'New Year is coming, Christmas season, gift guides are popular',\n  1:  'New Year resolutions, fresh start energy, self-improvement focus',\n  2:  \"Valentine's Day, love and relationships, winter ending\",\n  3:  'Spring is starting, renewal, March 8 International Women\\'s Day',\n  4:  'Spring energy, Easter, outdoor activities returning',\n  5:  'Late spring, summer prep, outdoor lifestyle',\n  6:  'Early summer, vacations, longer days',\n  7:  'Peak summer, travel, heat tips',\n  8:  'Late summer, back to school prep, end of vacation',\n  9:  'Autumn begins, back to routine, cozy vibes',\n  10: 'Deep autumn, Halloween, comfort content',\n  11: 'Pre-holiday season, Black Friday, gratitude theme'\n};\nconst seasonHint = seasonMap[month] || 'no special season';\n\n// Fetch recent post titles to avoid repetition\nlet recentTitles = [];\ntry {\n  const postsResp = await this.helpers.httpRequest({\n    method: 'GET',\n    url: `http://172.17.0.1:8000/api/blogs/${blog.id}/posts`,\n    ignoreHttpStatusErrors: true\n  });\n  const posts = Array.isArray(postsResp) ? postsResp : [];\n  recentTitles = posts.slice(0, 7).map(p => p.title);\n} catch(e) {\n  recentTitles = [];\n}\n\nreturn [{ json: {\n  ...blog,\n  dateStr,\n  seasonHint,\n  recentTitles\n} }];"
-      },
-      "name": "Prepare Context",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1040, 160],
-      "id": "aabb1234-0001-0001-0001-000000000001"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "HTTP-Referer",
-              "value": "https://n8n.io"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"google/gemini-2.0-flash-exp:free\",\n  \"max_tokens\": 250,\n  \"temperature\": 0.9,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You generate blog post topic ideas. Reply ONLY with JSON, no markdown, no explanation.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Generate 1 fresh, specific topic for a {{ $json.niche }} blog called '{{ $json.name }}'.\\nLanguage: {{ $json.language }}\\nToday: {{ $json.dateStr }}\\nSeasonal context: {{ $json.seasonHint }}\\nRecently published titles (DO NOT repeat these topics):\\n{{ $json.recentTitles.join('\\\\n') }}\\n\\nPick a topic that fits the season and hasn't been covered recently. The angle should be specific and ideally counter-intuitive or surprising.\\nReturn strict JSON: {\\\"topic\\\": \\\"...\\\", \\\"angle\\\": \\\"...\\\", \\\"format\\\": \\\"tip|facts|motivation|myth-busting|plan\\\"}\"\n    }\n  ]\n}",
-        "options": {}
-      },
-      "name": "Generate Topic",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [1260, 160],
-      "id": "e8d796b2-4027-41f5-b9b1-c520b75c4162",
-      "retryOnFail": true,
-      "waitBetweenTries": 3000
-    },
-    {
-      "parameters": {
-        "jsCode": "const raw = $json.choices[0].message.content.trim();\nconst blog = $('Prepare Context').first().json;\n\nlet parsed;\ntry {\n  const match = raw.match(/\\{[\\s\\S]*\\}/);\n  parsed = JSON.parse(match[0]);\n} catch(e) {\n  console.log('Topic parse failed:', raw);\n  parsed = { topic: `Best tips for ${blog.niche}`, angle: 'beginner guide', format: 'tip' };\n}\n\nreturn [{ json: { ...parsed, blog } }];"
-      },
-      "name": "Parse Topic",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1480, 160],
-      "id": "e0770d3f-9207-4431-97cd-12963ff3de36"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
-            },
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            },
-            {
-              "name": "HTTP-Referer",
-              "value": "https://n8n.io"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"google/gemini-2.0-flash-exp:free\",\n  \"max_tokens\": 2000,\n  \"temperature\": 0.85,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are the lead writer for '{{ $json.blog.name }}', a {{ $json.blog.niche }} blog. Write in {{ $json.blog.language }}.\\n\\nBLOG VOICE & CONTEXT:\\n{{ $json.blog.description }}\\n\\nToday's date: {{ $json.blog.dateStr }}\\nSeasonal context: {{ $json.blog.seasonHint }}\\n\\nCONTENT REQUIREMENTS:\\n- Length: 600-900 words minimum. Short posts will be rejected.\\n- Structure: hook → context → main content (with subheadings) → actionable takeaway → closing thought.\\n- Start with a strong hook: a surprising fact, a relatable problem, or a bold statement. NEVER start with 'In this article...' or 'Today we will...'\\n- Use specific details, numbers, real examples. Vague advice is useless.\\n- Every paragraph must deliver value. No filler sentences.\\n- Subheadings should read as natural sentences that spark curiosity (not 'Step 1:' or 'Introduction').\\n- End with a concrete takeaway or a thought-provoking question.\\n- 2-4 relevant emojis placed naturally throughout the text.\\n- NO hashtags.\\n- If the seasonal context is relevant to the topic, weave it in naturally.\\n\\nTONE — strictly avoid:\\n- 'In conclusion', 'It is important to note', 'As we can see'\\n- Filler openers like 'Are you looking for...', 'Have you ever wondered...'\\n- Passive voice where active is possible\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a Telegram channel post.\\nTopic: {{ $json.topic }}\\nAngle: {{ $json.angle }}\\nFormat: {{ $json.format }}\"\n    }\n  ]\n}",
-        "options": {}
+        "jsCode": "const blog = $json;\n\nconst result = await this.helpers.httpRequest({\n  method: 'POST',\n  url: 'http://172.17.0.1:8000/api/ai/generate-post',\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({ blog_id: blog.id, prompt: '' }),\n  ignoreHttpStatusErrors: true\n});\n\nconst post = typeof result === 'string' ? JSON.parse(result) : result;\nif (!post.title || !post.content) {\n  throw new Error('Bad post response: ' + JSON.stringify(post).slice(0, 200));\n}\n\nreturn [{ json: { blog, ...post } }];",
+        "retryOnFail": true,
+        "waitBetweenTries": 3000
       },
       "name": "Generate Post",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [1700, 160],
-      "id": "8b58a887-47f9-4043-b897-1c6b964598c8",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1480,
+        160
+      ],
+      "id": "gen-post-001",
       "retryOnFail": true,
       "waitBetweenTries": 3000
     },
     {
       "parameters": {
-        "jsCode": "const content = $json.choices[0].message.content.trim();\nconst tokens  = $json.usage?.total_tokens || 0;\nconst prev    = $('Parse Topic').first().json;\n\nreturn [{ json: {\n  content,\n  tokens,\n  topic:   prev.topic,\n  format:  prev.format,\n  blog:    prev.blog,\n  postId:  Date.now().toString()\n} }];"
+        "jsCode": "const d = $json;\n\n// Делим контент на абзацы\nconst paragraphs = d.content.split(/\\n\\n+/).filter(p => p.trim().length > 50);\nconst total = paragraphs.length;\n\n// Выбираем 2-3 позиции: примерно после 1/3 и 2/3 текста\nconst positions = [];\nif (total >= 4) {\n  positions.push(Math.floor(total * 0.33));\n  positions.push(Math.floor(total * 0.66));\n  if (total >= 7) positions.push(Math.floor(total * 0.85));\n}\n\n// Для каждой позиции — берём абзац и генерируем поисковый запрос\n// Используем сам текст абзаца как контекст\nconst spots = positions.map((paraIdx, i) => {\n  const context = paragraphs[paraIdx] || '';\n  // Берём первые 150 символов абзаца как основу для запроса\n  const snippet = context.slice(0, 150).replace(/[^а-яёa-z0-9\\s]/gi, ' ').trim();\n  // Добавляем нишу для релевантности\n  const query = `${d.blog.niche} ${snippet}`.slice(0, 100);\n  return { paraIdx, query };\n});\n\nreturn [{ json: { ...d, spots, paragraphs } }];"
       },
-      "name": "Extract Post",
+      "name": "Find Photo Spots",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1920, 160],
-      "id": "911e69d1-a66f-48a9-80ef-8d71f225bb75"
+      "position": [
+        1700,
+        160
+      ],
+      "id": "find-spots-001"
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\nconst baseUrl = $env.N8N_WEBHOOK_URL || 'http://localhost:5678';\nconst resumePath = $execution.resumeUrl.replace('http://localhost:5678', '');\nconst approveUrl = baseUrl + resumePath + '?action=approve';\nconst rejectUrl  = baseUrl + resumePath + '?action=reject';\n\nconst preview = d.content.length > 400 ? d.content.slice(0, 400) + '...' : d.content;\n\nconst body = {\n  chat_id:    $env.TELEGRAM_MY_ID,\n  parse_mode: 'HTML',\n  text: `🗂 <b>${d.blog.name}</b>  ·  ${d.blog.niche}\\n📌 <b>Channel:</b> ${d.blog.telegram_channel || 'none'}\\n🗓 ${d.blog.dateStr || ''}\\n\\n🏷 <b>Topic:</b> ${d.topic}\\n📐 <b>Format:</b> ${d.format}\\n🔢 <b>Tokens:</b> ${d.tokens}\\n\\n━━━━━━━━━━━━━━━━━━\\n${preview}\\n━━━━━━━━━━━━━━━━━━`,\n  reply_markup: {\n    inline_keyboard: [[\n      { text: '✅ Publish', url: approveUrl },\n      { text: '❌ Skip',    url: rejectUrl  }\n    ]]\n  }\n};\n\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify(body),\n  returnFullResponse: false,\n  ignoreHttpStatusErrors: true\n});\n\nreturn [{ json: { ...d, approveUrl, rejectUrl } }];"
+        "jsCode": "const d = $json;\nconst spots = d.spots || [];\nconst paragraphs = d.paragraphs || d.content.split(/\\n\\n+/);\n\n// Для каждого спота ищем фото\nconst photosMap = {};\n\nfor (const spot of spots) {\n  const query = encodeURIComponent(spot.query);\n  try {\n    const resp = await this.helpers.httpRequest({\n      method: 'GET',\n      url: `https://api.unsplash.com/photos/random?query=${query}&orientation=landscape&content_filter=high`,\n      headers: { 'Authorization': `Client-ID ${$env.UNSPLASH_ACCESS_KEY}` },\n      ignoreHttpStatusErrors: true\n    });\n    if (resp && resp.urls) {\n      photosMap[spot.paraIdx] = {\n        url:        resp.urls.regular,\n        author:     resp.user?.name || '',\n        authorUrl:  resp.user?.links?.html || '',\n      };\n    }\n  } catch(e) {\n    console.log('Unsplash error for spot', spot.paraIdx, e.message);\n  }\n  // Небольшая пауза чтобы не спамить API\n  await new Promise(r => setTimeout(r, 300));\n}\n\n// Вставляем фото в нужные места контента\n// Формат: специальный маркер [[PHOTO:url|author|authorUrl]] между абзацами\nconst result = [];\nfor (let i = 0; i < paragraphs.length; i++) {\n  result.push(paragraphs[i]);\n  if (photosMap[i]) {\n    const p = photosMap[i];\n    result.push(`[[PHOTO:${p.url}|${p.author}|${p.authorUrl}]]`);\n  }\n}\n\nconst contentWithPhotos = result.join('\\n\\n');\n\nreturn [{ json: {\n  blog:            d.blog,\n  title:           d.title,\n  content:         d.content,           // оригинал для Telegram\n  contentWithPhotos,                    // с фото для сайта\n  category:        d.category,\n  excerpt:         d.excerpt,\n  photoCount:      Object.keys(photosMap).length,\n} }];"
       },
-      "name": "Send for Approval",
+      "name": "Fetch Photos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2140, 160],
-      "id": "bed21839-44f7-42d6-a616-392ee222067e"
+      "position": [
+        1920,
+        160
+      ],
+      "id": "fetch-photos-001"
     },
     {
       "parameters": {
-        "resume": "webhook",
-        "options": {
-          "responseData": "No Response Body"
-        }
-      },
-      "name": "Wait for Button",
-      "type": "n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [2360, 160],
-      "webhookId": "blog-approval",
-      "id": "192e4ba6-9cb6-47b4-be8e-b1fca2d79428"
-    },
-    {
-      "parameters": {
-        "jsCode": "const query  = $json.query || {};\nconst action = query.action || 'reject';\nconst approve = action === 'approve';\nconst post   = $('Extract Post').first().json;\nreturn [{ json: { approve, action, ...post } }];"
-      },
-      "name": "Parse Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2580, 160],
-      "id": "32d3514a-fb89-4e9b-b775-c0e90b536805"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.approve }}",
-              "value2": true
-            }
-          ]
-        }
-      },
-      "name": "Approved?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [2800, 160],
-      "id": "881e4d50-992b-4c4a-b031-21519a4cb8de"
-    },
-    {
-      "parameters": {
-        "jsCode": "const d = $json;\n\n// 1. Save to blog API\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `http://172.17.0.1:8000/api/blogs/${d.blog.id}/posts`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    title:    d.topic,\n    content:  d.content,\n    category: d.format\n  }),\n  ignoreHttpStatusErrors: true\n});\n\n// 2. Post to Telegram channel if configured\nif (d.blog.telegram_channel) {\n  await this.helpers.httpRequest({\n    method: 'POST',\n    url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({\n      chat_id: d.blog.telegram_channel,\n      text:    d.content\n    }),\n    ignoreHttpStatusErrors: true\n  });\n}\n\nreturn [{ json: { status: 'published', blog: d.blog.id, topic: d.topic } }];"
+        "jsCode": "const d = $json;\n\n// Сохраняем пост с фото-маркерами (main.py распарсит их при рендере)\nawait this.helpers.httpRequest({\n  method: 'POST',\n  url: `http://172.17.0.1:8000/api/blogs/${d.blog.id}/posts`,\n  headers: { 'Content-Type': 'application/json' },\n  body: JSON.stringify({\n    title:    d.title,\n    content:  d.contentWithPhotos,\n    category: d.category || d.blog.niche,\n    excerpt:  d.excerpt  || '',\n  }),\n  ignoreHttpStatusErrors: true\n});\n\n// Telegram — оригинальный контент без фото, с разбивкой\nif (d.blog.telegram_channel) {\n  const MAX = 4000;\n  function splitText(text, maxLen) {\n    const parts = [];\n    const paragraphs = text.split(/\\n\\n+/);\n    let current = '';\n    for (const para of paragraphs) {\n      const candidate = current ? current + '\\n\\n' + para : para;\n      if (candidate.length <= maxLen) {\n        current = candidate;\n      } else {\n        if (current) parts.push(current.trim());\n        if (para.length > maxLen) {\n          const sentences = para.match(/[^.!?]+[.!?]+/g) || [para];\n          let chunk = '';\n          for (const s of sentences) {\n            if ((chunk + s).length <= maxLen) { chunk += s; }\n            else { if (chunk) parts.push(chunk.trim()); chunk = s; }\n          }\n          if (chunk) current = chunk.trim();\n        } else { current = para; }\n      }\n    }\n    if (current) parts.push(current.trim());\n    return parts;\n  }\n\n  const parts = splitText(d.content, MAX);\n  const total = parts.length;\n  for (let i = 0; i < total; i++) {\n    const suffix = total > 1 ? `\\n\\n— ${i+1}/${total}` : '';\n    await this.helpers.httpRequest({\n      method: 'POST',\n      url: `https://api.telegram.org/bot${$env.TELEGRAM_BOT_TOKEN}/sendMessage`,\n      headers: { 'Content-Type': 'application/json' },\n      body: JSON.stringify({ chat_id: d.blog.telegram_channel, text: parts[i] + suffix }),\n      ignoreHttpStatusErrors: true\n    });\n    if (i < total - 1) await new Promise(r => setTimeout(r, 500));\n  }\n}\n\nreturn [{ json: { status: 'published', blog: d.blog.id, title: d.title } }];"
       },
       "name": "Publish",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3020, 60],
-      "id": "1d09943e-d39a-4882-ba0a-9ee3b116b2cb"
+      "position": [
+        2140,
+        160
+      ],
+      "id": "publish-001"
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { status: 'skipped', blog: $json.blog.id } }];"
-      },
-      "name": "Skip",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3020, 280],
-      "id": "498dc424-496d-4cdb-8e29-247887168948"
-    },
-    {
-      "parameters": {
-        "jsCode": "// After publish or skip — continue loop to next blog\nreturn [{ json: $json }];"
+        "jsCode": "return [{ json: $json }];"
       },
       "name": "Next Blog",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3240, 160],
-      "id": "aabb1234-0001-0001-0001-000000000002"
+      "position": [
+        2360,
+        160
+      ],
+      "id": "next-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $execution.mode }}",
+              "value2": "manual",
+              "operation": "equals"
+            }
+          ]
+        }
+      },
+      "name": "Is Manual?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        380,
+        160
+      ],
+      "id": "is-manual-001"
     }
   ],
   "pinData": {},
   "connections": {
-    "Manual Trigger": {
-      "main": [[{ "node": "Fetch All Blogs", "type": "main", "index": 0 }]]
-    },
     "Schedule": {
-      "main": [[{ "node": "Fetch All Blogs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Schedule Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Manual?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Check": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch All Blogs": {
-      "main": [[{ "node": "Split Blogs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Filter Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Blogs": {
+      "main": [
+        [
+          {
+            "node": "Split Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Split Blogs": {
-      "main": [[{ "node": "Loop Over Blogs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Loop Over Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Loop Over Blogs": {
       "main": [
         [],
-        [{ "node": "Prepare Context", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Generate Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Prepare Context": {
-      "main": [[{ "node": "Generate Topic", "type": "main", "index": 0 }]]
-    },
-    "Generate Topic": {
-      "main": [[{ "node": "Parse Topic", "type": "main", "index": 0 }]]
-    },
-    "Parse Topic": {
-      "main": [[{ "node": "Generate Post", "type": "main", "index": 0 }]]
-    },
     "Generate Post": {
-      "main": [[{ "node": "Extract Post", "type": "main", "index": 0 }]]
-    },
-    "Extract Post": {
-      "main": [[{ "node": "Send for Approval", "type": "main", "index": 0 }]]
-    },
-    "Send for Approval": {
-      "main": [[{ "node": "Wait for Button", "type": "main", "index": 0 }]]
-    },
-    "Wait for Button": {
-      "main": [[{ "node": "Parse Response", "type": "main", "index": 0 }]]
-    },
-    "Parse Response": {
-      "main": [[{ "node": "Approved?", "type": "main", "index": 0 }]]
-    },
-    "Approved?": {
       "main": [
-        [{ "node": "Publish", "type": "main", "index": 0 }],
-        [{ "node": "Skip", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Find Photo Spots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Photo Spots": {
+      "main": [
+        [
+          {
+            "node": "Fetch Photos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Photos": {
+      "main": [
+        [
+          {
+            "node": "Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Publish": {
-      "main": [[{ "node": "Next Blog", "type": "main", "index": 0 }]]
-    },
-    "Skip": {
-      "main": [[{ "node": "Next Blog", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Next Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Next Blog": {
-      "main": [[{ "node": "Loop Over Blogs", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Loop Over Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Manual?": {
+      "main": [
+        [
+          {
+            "node": "Fetch All Blogs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Schedule Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
-    "executionOrder": "v1"
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
   },
-  "versionId": "cb46d890-9aaa-4dd4-baaa-c1c5fb46e937",
+  "versionId": "f6108bd7-e0a2-437b-a50b-602398c93b32",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "b7841e880b4643b1e60e3bebe2ab485bb33c78bba18349bc6f64c1bd5f9619cf"
